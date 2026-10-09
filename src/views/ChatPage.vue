@@ -1,0 +1,297 @@
+<template>
+  <div class="chat-page">
+    <ConversationList
+      :conversations="conversations"
+      :active-conversation-id="activeConversationId"
+      :active-nav-key="activeNavKey"
+      :loading="loadingConversations"
+      :streaming="streaming"
+      :collapsed="sidebarCollapsed"
+      @new-chat="startNewChat"
+      @select="selectConversation"
+      @delete="deleteConversation"
+      @collapse="sidebarCollapsed = true"
+      @expand="sidebarCollapsed = false"
+    />
+    <div class="chat-main">
+      <ChatPanel
+        :messages="messages"
+        :loading-messages="loadingMessages"
+        :progress-text="progressText"
+        :pending-actions="pendingActions"
+        :streaming="streaming"
+        :error-message="errorMessage"
+        :can-retry="!!lastUserInput"
+        :greeting-name="greetingName"
+        :agents="agents"
+        :models="models"
+        v-model:agent-id="selectedAgentId"
+        v-model:model-profile-id="selectedModelProfileId"
+        @send="sendUserInput"
+        @action="sendAction"
+        @retry="retryLast"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { Generator } from '../shared/id'
+import { useSessionStore } from '../platform/stores/session.store'
+import { ChatApi } from './chat/api'
+import { historyToChatItems } from './chat/messages'
+import type {
+  AgentProfileItem,
+  ChatConversation,
+  ChatMessageItem,
+  ModelProfileItem,
+  PendingTurnActions,
+  ResumeAction,
+  TurnRequest,
+} from './chat/type'
+import ConversationList from './chat/ConversationList.vue'
+import ChatPanel from './chat/ChatPanel.vue'
+
+const sessionStore = useSessionStore()
+const { user } = storeToRefs(sessionStore)
+const greetingName = computed(() => user.value?.displayName ?? null)
+
+const sidebarCollapsed = ref(false)
+/** 上半区导航激活项；仅点击后设置，默认无底色 */
+const activeNavKey = ref<string | null>(null)
+const conversations = ref<ChatConversation[]>([])
+const activeConversationId = ref<string | null>(null)
+const messages = ref<ChatMessageItem[]>([])
+const loadingConversations = ref(false)
+const loadingMessages = ref(false)
+const streaming = ref(false)
+const progressText = ref<string | null>(null)
+const pendingActions = ref<PendingTurnActions | null>(null)
+const lastUserInput = ref<string | null>(null)
+const errorMessage = ref<string | null>(null)
+/** null = 默认路由 / 默认模型 */
+const selectedAgentId = ref<number | null>(null)
+const selectedModelProfileId = ref<number | null>(null)
+const agents = ref<AgentProfileItem[]>([])
+const models = ref<ModelProfileItem[]>([])
+
+let abortController: AbortController | null = null
+
+async function loadConversations(): Promise<void> {
+  loadingConversations.value = true
+  errorMessage.value = null
+  try {
+    conversations.value = await ChatApi.listConversations()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '加载会话列表失败'
+  } finally {
+    loadingConversations.value = false
+  }
+}
+
+async function loadComposerOptions(): Promise<void> {
+  try {
+    const [agentRows, modelRows] = await Promise.all([
+      ChatApi.listAgents(),
+      ChatApi.listModels(),
+    ])
+    agents.value = agentRows
+    models.value = modelRows
+  } catch {
+    agents.value = []
+    models.value = []
+  }
+}
+
+async function selectConversation(conversationId: string): Promise<void> {
+  if (streaming.value) return
+  activeNavKey.value = null
+  activeConversationId.value = conversationId
+  pendingActions.value = null
+  progressText.value = null
+  await loadMessages(conversationId)
+}
+
+async function loadMessages(conversationId: string): Promise<void> {
+  loadingMessages.value = true
+  errorMessage.value = null
+  try {
+    const rows = await ChatApi.listMessages(conversationId)
+    messages.value = historyToChatItems(rows)
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '加载历史消息失败'
+    messages.value = []
+  } finally {
+    loadingMessages.value = false
+  }
+}
+
+function startNewChat(): void {
+  if (streaming.value) return
+  activeNavKey.value = 'new'
+  activeConversationId.value = null
+  messages.value = []
+  pendingActions.value = null
+  progressText.value = null
+  errorMessage.value = null
+}
+
+async function deleteConversation(conversationId: string): Promise<void> {
+  try {
+    await ChatApi.deleteConversation(conversationId)
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '删除会话失败'
+    return
+  }
+  conversations.value = conversations.value.filter((item) => item.conversationId !== conversationId)
+  if (activeConversationId.value === conversationId) {
+    startNewChat()
+  }
+}
+
+function appendMessage(role: 'USER' | 'AGENT', content: string): void {
+  messages.value.push({
+    id: Generator.random(),
+    role,
+    content,
+    createdAtMs: Date.now(),
+  })
+}
+
+async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promise<void> {
+  if (streaming.value) return
+
+  if (optimisticUserText) {
+    lastUserInput.value = optimisticUserText
+    appendMessage('USER', optimisticUserText)
+  }
+
+  streaming.value = true
+  progressText.value = null
+  pendingActions.value = null
+  errorMessage.value = null
+
+  abortController?.abort()
+  abortController = new AbortController()
+  const traceId = Generator.random()
+
+  try {
+    await ChatApi.sendTurn(
+      req,
+      traceId,
+      (event) => {
+        if (event.text) {
+          progressText.value = event.text
+        }
+        if (event.conversationId && !activeConversationId.value) {
+          activeConversationId.value = event.conversationId
+        }
+      },
+      (event) => {
+        progressText.value = null
+        if (event.conversationId) {
+          activeConversationId.value = event.conversationId
+        }
+        if (event.text) {
+          appendMessage('AGENT', event.text)
+        }
+        if (event.status === 'WAITING' && event.actions?.length) {
+          pendingActions.value = {
+            actions: event.actions,
+            suggestions: event.suggestions ?? [],
+          }
+        } else {
+          pendingActions.value = null
+        }
+      },
+      abortController.signal,
+    )
+    void loadConversations()
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return
+    }
+    const message = error instanceof Error ? error.message : '发送失败'
+    errorMessage.value = message
+    if (activeConversationId.value) {
+      void loadMessages(activeConversationId.value)
+    }
+  } finally {
+    streaming.value = false
+    abortController = null
+  }
+}
+
+async function sendUserInput(text: string): Promise<void> {
+  const trimmed = text.trim()
+  if (!trimmed) return
+
+  const req: TurnRequest = {
+    channel: 'web',
+    userInput: trimmed,
+  }
+  if (activeConversationId.value) {
+    req.conversationId = activeConversationId.value
+  }
+  if (selectedAgentId.value != null) {
+    req.agentId = selectedAgentId.value
+  }
+  if (selectedModelProfileId.value != null) {
+    req.modelProfileId = selectedModelProfileId.value
+  }
+  if (pendingActions.value?.actions.includes('REPLY')) {
+    req.action = 'REPLY'
+  }
+  await submitTurn(req, trimmed)
+}
+
+async function sendAction(action: ResumeAction, userInput?: string): Promise<void> {
+  if (!activeConversationId.value) return
+
+  const req: TurnRequest = {
+    channel: 'web',
+    conversationId: activeConversationId.value,
+    action,
+  }
+  if (userInput) {
+    req.userInput = userInput
+  }
+  if (selectedAgentId.value != null) {
+    req.agentId = selectedAgentId.value
+  }
+  if (selectedModelProfileId.value != null) {
+    req.modelProfileId = selectedModelProfileId.value
+  }
+  await submitTurn(req, userInput)
+}
+
+async function retryLast(): Promise<void> {
+  if (!lastUserInput.value) return
+  await sendUserInput(lastUserInput.value)
+}
+
+onMounted(() => {
+  void loadConversations()
+  void loadComposerOptions()
+})
+</script>
+
+<style scoped>
+.chat-page {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--g2-bg-container, #fff);
+}
+
+.chat-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+</style>
