@@ -90,8 +90,8 @@ export function isAuthPublicPath(pathname: string): boolean {
   return pathname.endsWith('/sso_callback') || pathname.endsWith('/logout')
 }
 
-/** DingTalk passport bind mode: INTERNAL | THIRD_PARTY */
-export function getDingTalkBindMode(): string {
-  const raw = getEnvVar('VITE_DINGTALK_BIND_MODE', import.meta.env.VITE_DINGTALK_BIND_MODE || 'INTERNAL')
-  return raw.trim() || 'INTERNAL'
+/** 国际化文案包 tags（逗号分隔，与 i18n_message.tag 一致） */
+export function getI18nTags(): string {
+  const raw = getEnvVar('VITE_I18N_TAGS', import.meta.env.VITE_I18N_TAGS || 'G2RAIN_SHARED')
+  return raw.trim() || 'G2RAIN_SHARED'
 }

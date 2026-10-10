@@ -48,7 +48,7 @@
                 :value="agentId == null ? '' : String(agentId)"
                 :disabled="disabled"
                 aria-label="数字员工"
-                @change="onAgentChange"
+                @change="agentId = parseSelectId($event)"
               >
                 <option value="">默认路由</option>
                 <option
@@ -66,7 +66,7 @@
                 :value="modelProfileId == null ? '' : String(modelProfileId)"
                 :disabled="disabled"
                 aria-label="模型"
-                @change="onModelChange"
+                @change="modelProfileId = parseSelectId($event)"
               >
                 <option value="">默认模型</option>
                 <option
@@ -74,7 +74,7 @@
                   :key="item.id"
                   :value="String(item.id)"
                 >
-                  {{ modelLabel(item) }}
+                  {{ item.modelName }}
                 </option>
               </select>
             </label>
@@ -110,15 +110,14 @@ const props = defineProps<{
   emptyLayout?: boolean
   agents: AgentProfileItem[]
   models: ModelProfileItem[]
-  agentId: number | null
-  modelProfileId: number | null
 }>()
+
+const agentId = defineModel<number | null>('agentId', { required: true })
+const modelProfileId = defineModel<number | null>('modelProfileId', { required: true })
 
 const emit = defineEmits<{
   send: [text: string]
   action: [action: ResumeAction, userInput?: string]
-  'update:agentId': [value: number | null]
-  'update:modelProfileId': [value: number | null]
 }>()
 
 const draft = ref('')
@@ -141,18 +140,9 @@ const visibleActions = computed(() => {
     }))
 })
 
-function modelLabel(item: ModelProfileItem): string {
-  return item.modelName || item.description || `模型 #${item.id}`
-}
-
-function onAgentChange(event: Event): void {
+function parseSelectId(event: Event): number | null {
   const value = (event.target as HTMLSelectElement).value
-  emit('update:agentId', value === '' ? null : Number(value))
-}
-
-function onModelChange(event: Event): void {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:modelProfileId', value === '' ? null : Number(value))
+  return value === '' ? null : Number(value)
 }
 
 function autoResize(): void {

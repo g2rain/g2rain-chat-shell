@@ -1,5 +1,5 @@
 <template>
-  <aside class="conversation-list" :class="{ collapsed, 'has-open-menu': !!openMenuId }">
+  <aside class="conversation-list" :class="{ collapsed }">
     <template v-if="collapsed">
       <div class="rail">
         <button
@@ -64,7 +64,6 @@
               <span>最近</span>
               <ChevronIcon :expanded="recentExpanded" />
             </button>
-            <!-- 右侧预留：后续可放 … 等操作 -->
           </div>
 
           <div v-show="recentExpanded" class="recent-body">
@@ -74,7 +73,7 @@
               <span>暂无历史对话</span>
             </div>
 
-            <nav v-else class="list-nav">
+            <nav v-else class="list-nav" @scroll="closeMenu">
               <div
                 v-for="item in conversations"
                 :key="item.conversationId"
@@ -99,26 +98,10 @@
                     title="更多"
                     aria-label="更多"
                     :aria-expanded="openMenuId === item.conversationId"
-                    @click.stop="toggleMenu(item.conversationId)"
+                    @click.stop="toggleMenu(item.conversationId, $event)"
                   >
                     <MoreIcon />
                   </button>
-                  <div
-                    v-if="openMenuId === item.conversationId"
-                    class="item-menu"
-                    role="menu"
-                    @click.stop
-                  >
-                    <button
-                      type="button"
-                      class="item-menu__btn danger"
-                      role="menuitem"
-                      @click="onDelete(item.conversationId)"
-                    >
-                      <TrashIcon />
-                      <span>删除</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </nav>
@@ -128,11 +111,32 @@
 
       <SidebarAccount />
     </template>
+
+    <Teleport to="body">
+      <div
+        v-if="openMenuId && menuStyle"
+        class="item-menu"
+        :style="menuStyle"
+        role="menu"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="item-menu__btn danger"
+          role="menuitem"
+          @click="onDelete"
+        >
+          <TrashIcon />
+          <span>删除</span>
+        </button>
+      </div>
+    </Teleport>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import logoHeader from '@/assets/brand/logo-header.png'
 import SidebarAccount from '../../shell/layout/SidebarAccount.vue'
 import type { ChatConversation } from './type'
@@ -143,7 +147,7 @@ import MoreIcon from './icons/MoreIcon.vue'
 import SidebarIcon from './icons/SidebarIcon.vue'
 import TrashIcon from './icons/TrashIcon.vue'
 
-defineProps<{
+const props = defineProps<{
   conversations: ChatConversation[]
   activeConversationId: string | null
   activeNavKey: string | null
@@ -155,33 +159,67 @@ defineProps<{
 const emit = defineEmits<{
   newChat: []
   select: [conversationId: string]
-  delete: [conversationId: string]
+  delete: [id: number]
   collapse: []
   expand: []
 }>()
 
 const recentExpanded = ref(true)
 const openMenuId = ref<string | null>(null)
+const menuStyle = ref<CSSProperties | null>(null)
 
-function toggleMenu(conversationId: string): void {
-  openMenuId.value = openMenuId.value === conversationId ? null : conversationId
+function closeMenu(): void {
+  openMenuId.value = null
+  menuStyle.value = null
 }
 
-function onDelete(conversationId: string): void {
-  openMenuId.value = null
-  emit('delete', conversationId)
+function toggleMenu(conversationId: string, event: MouseEvent): void {
+  if (openMenuId.value === conversationId) {
+    closeMenu()
+    return
+  }
+  const btn = event.currentTarget as HTMLElement
+  const rect = btn.getBoundingClientRect()
+  openMenuId.value = conversationId
+  // fixed + Teleport：不放开侧栏 overflow，避免列表透到左下角账号区
+  menuStyle.value = {
+    top: `${rect.bottom + 4}px`,
+    left: `${Math.max(8, rect.left - 8)}px`,
+  }
+}
+
+async function onDelete(): Promise<void> {
+  const conversationId = openMenuId.value
+  const item = props.conversations.find((row) => row.conversationId === conversationId)
+  closeMenu()
+  if (item?.id == null) return
+
+  const title = item.title?.trim() || '新对话'
+  try {
+    await ElMessageBox.confirm(`确定删除「${title}」吗？删除后不可恢复。`, '删除会话', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--danger',
+    })
+  } catch {
+    return
+  }
+  emit('delete', item.id)
 }
 
 function onDocumentClick(): void {
-  openMenuId.value = null
+  closeMenu()
 }
 
 onMounted(() => {
   document.addEventListener('click', onDocumentClick)
+  window.addEventListener('resize', closeMenu)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
+  window.removeEventListener('resize', closeMenu)
 })
 </script>
 
@@ -196,19 +234,6 @@ onBeforeUnmount(() => {
   background: var(--g2-bg-container, #fff);
   overflow: hidden;
   transition: width 0.2s ease;
-}
-
-/* 菜单开在 … 右侧时，允许溢出到主内容区 */
-.conversation-list.has-open-menu {
-  overflow: visible;
-  z-index: 30;
-}
-
-.conversation-list.has-open-menu .sidebar-body,
-.conversation-list.has-open-menu .sidebar-recent,
-.conversation-list.has-open-menu .recent-body,
-.conversation-list.has-open-menu .list-nav {
-  overflow: visible;
 }
 
 .conversation-list.collapsed {
@@ -461,12 +486,8 @@ onBeforeUnmount(() => {
 }
 
 .item-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  /* 菜单左缘 = … 左缘再向左 8px */
-  left: -8px;
-  right: auto;
-  z-index: 20;
+  position: fixed;
+  z-index: 1000;
   min-width: 120px;
   width: max-content;
   padding: 4px;

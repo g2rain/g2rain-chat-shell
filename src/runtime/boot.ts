@@ -11,6 +11,7 @@ import {
   startRouteChangeHandler,
   startTokenInvalidHandler,
 } from '../components/micro-app'
+import { i18n, t } from '../platform/i18n'
 import { initMainPlatform } from '../platform/main-platform'
 import { initThemeController } from '../platform/theme'
 import { useLocaleStore } from '../platform/stores/locale.store'
@@ -20,7 +21,9 @@ import { awaitRuntimeEnvConfig } from '../shared/env'
 import { createShellRouter } from './router'
 import { initHttpClient } from './http'
 import { sso } from './auth/sso'
-import { startMenuBoot, setMenuBootRouter } from './boot/menu.boot'
+import { startLocaleBoot } from './boot/locale.boot'
+// chat 壳只承载对话 UI，不需要侧栏菜单 / 权限菜单拉数，故不启 menu.boot。
+// import { startMenuBoot, setMenuBootRouter } from './boot/menu.boot'
 import { ensureQiankunStarted } from '../platform/apps/qiankun-adapter'
 import { rewriteMicroDeepLinkToGateway } from './navigation/sub-app-redirect'
 import { installShellExtensions } from './shell-extensions'
@@ -42,9 +45,10 @@ export async function boot(): Promise<App> {
   app.use(pinia)
 
   const localeStore = useLocaleStore()
+  app.use(i18n)
   app.use(ElementPlus)
   app.use(G2rainUi, {
-    translate: (_key, fallback) => fallback,
+    translate: (key, fallback) => t(key, fallback ?? key),
     locale: () => localeStore.locale,
   })
 
@@ -71,12 +75,14 @@ export async function boot(): Promise<App> {
   ensureQiankunStarted()
 
   const router = createShellRouter()
-  setMenuBootRouter(router)
+  // chat 壳无菜单：不注入 menu.boot 的 router，也不 startMenuBoot。
+  // setMenuBootRouter(router)
   app.use(router)
 
   sso.start()
   await useSessionStore().bootstrapSession()
-  startMenuBoot()
+  startLocaleBoot()
+  // startMenuBoot()
   await router.isReady()
   app.mount('#app')
   return app
