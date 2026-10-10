@@ -27,21 +27,16 @@ function apiUrl(path: string): string {
   return `${base}/api${segment}`
 }
 
-interface AuthenticatedFetchInit extends RequestInit {
-  body?: BodyInit | null
-}
-
 /**
- * Build fetch init with Bearer + DPoP (same contract as @g2rain/http business client).
- * `path` is the API segment after `/api`, e.g. `/v1/chat/completions`.
+ * SSE 走原生 fetch（@g2rain/http 无 stream）；鉴权与 business client 同契约（Bearer + DPoP）。
+ * `path` 为 `/api` 后的业务段，同时作为 DPoP htu。
  */
 async function buildAuthenticatedFetchInit(
   path: string,
   method: string,
   body?: unknown,
   extraHeaders?: Record<string, string>,
-): Promise<AuthenticatedFetchInit> {
-  getHttpClient()
+): Promise<RequestInit> {
   const { sso } = await import('../../runtime/auth/sso')
   await sso.ensureAccessToken()
 
@@ -49,8 +44,6 @@ async function buildAuthenticatedFetchInit(
   if (!tokenStore.isLogin || !tokenStore.tokenString) {
     throw new Error('NO_LOGIN')
   }
-
-  const htu = apiPath(path)
   const client = tokenStore.client
   if (!client) {
     throw new Error('DPOP_CLIENT_REQUIRED')
@@ -59,23 +52,22 @@ async function buildAuthenticatedFetchInit(
   const headers = new Headers(extraHeaders)
   headers.set('Authorization', `Bearer ${tokenStore.tokenString}`)
   const locale = useLocaleStore().locale
-  if (locale && !headers.has('Accept-Language')) {
+  if (locale) {
     headers.set('Accept-Language', locale)
   }
 
   let payload: BodyInit | undefined
   if (body !== undefined) {
     payload = JSON.stringify(body)
-    if (!headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json')
-    }
+    headers.set('Content-Type', 'application/json')
   }
 
+  const upperMethod = method.toUpperCase()
   headers.set(
     'DPoP',
     await createDpopProof({
-      url: htu,
-      method: method.toUpperCase(),
+      url: apiPath(path),
+      method: upperMethod,
       data: body,
       applicationCode: getApplicationCode(),
       client,
@@ -83,35 +75,47 @@ async function buildAuthenticatedFetchInit(
     }),
   )
 
-  return {
-    method: method.toUpperCase(),
-    headers,
-    body: payload,
+  return { method: upperMethod, headers, body: payload }
+}
+
+function consumeSseBlocks(
+  buffer: string,
+  onEvent: (event: TurnEvent) => void,
+): string {
+  let rest = buffer
+  let sep: number
+  while ((sep = rest.indexOf('\n\n')) >= 0) {
+    const block = rest.slice(0, sep)
+    rest = rest.slice(sep + 2)
+    const data = block
+      .split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n')
+    if (!data) continue
+    onEvent(JSON.parse(data) as TurnEvent)
   }
+  return rest
 }
 
 export class ChatApi {
-  /** g2rain-agent-studio：启用中的数字员工 */
+  /** g2rain-agent-studio：ACTIVE 数字员工下拉（id + agentName） */
   static async listAgents(): Promise<AgentProfileItem[]> {
     const http = getHttpClient()
-    const res = await http.client.get<AgentProfileItem[]>('/agent_profile/list', {
-      status: 'ACTIVE',
-    })
+    const res = await http.client.get<AgentProfileItem[]>('/studio/agent_profile/options')
     return (res.data ?? []).filter((item) => item.id != null && item.agentName)
   }
 
-  /** g2rain-model-nexus：启用中的模型服务配置（含 modelName） */
+  /** g2rain-model-nexus：ACTIVE 模型下拉（id + modelName） */
   static async listModels(): Promise<ModelProfileItem[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ModelProfileItem[]>('/model_service_profile/list', {
-      status: 'ACTIVE',
-    })
-    return (res.data ?? []).filter((item) => item.id != null)
+    const res = await http.client.get<ModelProfileItem[]>('/model/model_service_profile/options')
+    return (res.data ?? []).filter((item) => item.id != null && item.modelName)
   }
 
   static async listConversations(): Promise<ChatConversation[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatConversation[]>('/chat_conversation/list')
+    const res = await http.client.get<ChatConversation[]>('/harness/chat_conversation/list')
     const rows = res.data ?? []
     return [...rows].sort((a, b) => {
       const ta = a.lastMessageTime ? Date.parse(a.lastMessageTime) : 0
@@ -122,15 +126,16 @@ export class ChatApi {
 
   static async listMessages(conversationId: string): Promise<ChatMessageRecord[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatMessageRecord[]>('/chat_message/list', {
+    const res = await http.client.get<ChatMessageRecord[]>('/harness/chat_message/list', {
       conversationId,
     })
     return res.data ?? []
   }
 
-  static async deleteConversation(conversationId: string): Promise<void> {
+  /** DELETE /harness/chat_conversation/{id} — 主键 id，非 conversationId */
+  static async deleteConversation(id: number): Promise<void> {
     const http = getHttpClient()
-    await http.client.post('/chat_conversation/delete', { conversationId })
+    await http.client.delete(`/harness/chat_conversation/${id}`)
   }
 
   static async sendTurn(
@@ -140,12 +145,12 @@ export class ChatApi {
     onResult: (event: TurnEvent) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    const init = await buildAuthenticatedFetchInit('/v1/chat/completions', 'POST', req, {
+    const init = await buildAuthenticatedFetchInit('/harness/v1/chat/completions', 'POST', req, {
       Accept: 'text/event-stream',
       'X-TRACE-ID': traceId,
     })
 
-    const resp = await fetch(apiUrl('/v1/chat/completions'), {
+    const resp = await fetch(apiUrl('/harness/v1/chat/completions'), {
       ...init,
       signal,
     })
@@ -161,28 +166,14 @@ export class ChatApi {
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
-      buffer += value
-
-      let sep: number
-      while ((sep = buffer.indexOf('\n\n')) >= 0) {
-        const block = buffer.slice(0, sep)
-        buffer = buffer.slice(sep + 2)
-
-        const data = block
-          .split('\n')
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n')
-        if (!data) continue
-
-        const event = JSON.parse(data) as TurnEvent
+      buffer = consumeSseBlocks(buffer + value, (event) => {
         if (event.type === 'PROGRESS') {
           onProgress(event)
         } else if (event.type === 'RESULT') {
           gotResult = true
           onResult(event)
         }
-      }
+      })
     }
 
     if (!gotResult) {

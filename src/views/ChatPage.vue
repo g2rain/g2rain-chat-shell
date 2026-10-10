@@ -79,38 +79,54 @@ const models = ref<ModelProfileItem[]>([])
 
 let abortController: AbortController | null = null
 
+function toErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
+
+function clearTurnUi(options?: { clearError?: boolean }): void {
+  pendingActions.value = null
+  progressText.value = null
+  if (options?.clearError) {
+    errorMessage.value = null
+  }
+}
+
+function withComposerSelection(req: TurnRequest): TurnRequest {
+  if (selectedAgentId.value != null) {
+    req.agentId = selectedAgentId.value
+  }
+  if (selectedModelProfileId.value != null) {
+    req.modelProfileId = selectedModelProfileId.value
+  }
+  return req
+}
+
 async function loadConversations(): Promise<void> {
   loadingConversations.value = true
   errorMessage.value = null
   try {
     conversations.value = await ChatApi.listConversations()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '加载会话列表失败'
+    errorMessage.value = toErrorMessage(error, '加载会话列表失败')
   } finally {
     loadingConversations.value = false
   }
 }
 
 async function loadComposerOptions(): Promise<void> {
-  try {
-    const [agentRows, modelRows] = await Promise.all([
-      ChatApi.listAgents(),
-      ChatApi.listModels(),
-    ])
-    agents.value = agentRows
-    models.value = modelRows
-  } catch {
-    agents.value = []
-    models.value = []
-  }
+  const [agentResult, modelResult] = await Promise.allSettled([
+    ChatApi.listAgents(),
+    ChatApi.listModels(),
+  ])
+  agents.value = agentResult.status === 'fulfilled' ? agentResult.value : []
+  models.value = modelResult.status === 'fulfilled' ? modelResult.value : []
 }
 
 async function selectConversation(conversationId: string): Promise<void> {
   if (streaming.value) return
   activeNavKey.value = null
   activeConversationId.value = conversationId
-  pendingActions.value = null
-  progressText.value = null
+  clearTurnUi()
   await loadMessages(conversationId)
 }
 
@@ -121,7 +137,7 @@ async function loadMessages(conversationId: string): Promise<void> {
     const rows = await ChatApi.listMessages(conversationId)
     messages.value = historyToChatItems(rows)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '加载历史消息失败'
+    errorMessage.value = toErrorMessage(error, '加载历史消息失败')
     messages.value = []
   } finally {
     loadingMessages.value = false
@@ -133,20 +149,23 @@ function startNewChat(): void {
   activeNavKey.value = 'new'
   activeConversationId.value = null
   messages.value = []
-  pendingActions.value = null
-  progressText.value = null
-  errorMessage.value = null
+  clearTurnUi({ clearError: true })
 }
 
-async function deleteConversation(conversationId: string): Promise<void> {
-  try {
-    await ChatApi.deleteConversation(conversationId)
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '删除会话失败'
+async function deleteConversation(id: number): Promise<void> {
+  const target = conversations.value.find((item) => item.id === id)
+  if (target?.id == null) {
+    errorMessage.value = '会话缺少主键，无法删除'
     return
   }
-  conversations.value = conversations.value.filter((item) => item.conversationId !== conversationId)
-  if (activeConversationId.value === conversationId) {
+  try {
+    await ChatApi.deleteConversation(id)
+  } catch (error) {
+    errorMessage.value = toErrorMessage(error, '删除会话失败')
+    return
+  }
+  conversations.value = conversations.value.filter((item) => item.id !== id)
+  if (activeConversationId.value === target.conversationId) {
     startNewChat()
   }
 }
@@ -169,9 +188,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
   }
 
   streaming.value = true
-  progressText.value = null
-  pendingActions.value = null
-  errorMessage.value = null
+  clearTurnUi({ clearError: true })
 
   abortController?.abort()
   abortController = new AbortController()
@@ -197,14 +214,10 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
         if (event.text) {
           appendMessage('AGENT', event.text)
         }
-        if (event.status === 'WAITING' && event.actions?.length) {
-          pendingActions.value = {
-            actions: event.actions,
-            suggestions: event.suggestions ?? [],
-          }
-        } else {
-          pendingActions.value = null
-        }
+        pendingActions.value =
+          event.status === 'WAITING' && event.actions?.length
+            ? { actions: event.actions, suggestions: event.suggestions ?? [] }
+            : null
       },
       abortController.signal,
     )
@@ -213,8 +226,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
     if (error instanceof Error && error.name === 'AbortError') {
       return
     }
-    const message = error instanceof Error ? error.message : '发送失败'
-    errorMessage.value = message
+    errorMessage.value = toErrorMessage(error, '发送失败')
     if (activeConversationId.value) {
       void loadMessages(activeConversationId.value)
     }
@@ -228,42 +240,24 @@ async function sendUserInput(text: string): Promise<void> {
   const trimmed = text.trim()
   if (!trimmed) return
 
-  const req: TurnRequest = {
+  const req = withComposerSelection({
     channel: 'web',
     userInput: trimmed,
-  }
-  if (activeConversationId.value) {
-    req.conversationId = activeConversationId.value
-  }
-  if (selectedAgentId.value != null) {
-    req.agentId = selectedAgentId.value
-  }
-  if (selectedModelProfileId.value != null) {
-    req.modelProfileId = selectedModelProfileId.value
-  }
-  if (pendingActions.value?.actions.includes('REPLY')) {
-    req.action = 'REPLY'
-  }
+    ...(activeConversationId.value ? { conversationId: activeConversationId.value } : {}),
+    ...(pendingActions.value?.actions.includes('REPLY') ? { action: 'REPLY' as const } : {}),
+  })
   await submitTurn(req, trimmed)
 }
 
 async function sendAction(action: ResumeAction, userInput?: string): Promise<void> {
   if (!activeConversationId.value) return
 
-  const req: TurnRequest = {
+  const req = withComposerSelection({
     channel: 'web',
     conversationId: activeConversationId.value,
     action,
-  }
-  if (userInput) {
-    req.userInput = userInput
-  }
-  if (selectedAgentId.value != null) {
-    req.agentId = selectedAgentId.value
-  }
-  if (selectedModelProfileId.value != null) {
-    req.modelProfileId = selectedModelProfileId.value
-  }
+    ...(userInput ? { userInput } : {}),
+  })
   await submitTurn(req, userInput)
 }
 

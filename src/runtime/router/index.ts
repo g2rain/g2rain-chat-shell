@@ -3,7 +3,6 @@ import { defineComponent, h } from 'vue'
 import { getContextPath, isAuthPublicPath } from '../../shared/env'
 import SsoCallback from '../../views/auth/SsoCallback.vue'
 import Logout from '../../views/auth/Logout.vue'
-import PassportBindResult from '../../views/auth/PassportBindResult.vue'
 import SubAppRedirectGateway from '../../views/redirect/SubAppRedirectGateway.vue'
 import { useAccessTokenStore } from '../../platform/stores/token.store'
 import {
@@ -35,12 +34,6 @@ const routes: RouteRecordRaw[] = [
     name: 'logout',
     component: Logout,
     meta: { requiresAuth: false, bare: true },
-  },
-  {
-    path: '/passport/bind_result',
-    name: 'passport-bind-result',
-    component: PassportBindResult,
-    meta: { requiresAuth: true, bare: true },
   },
   {
     path: '/redirect/:pathMatch(.*)*',

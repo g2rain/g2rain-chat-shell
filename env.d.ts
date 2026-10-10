@@ -9,7 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_END_POINT: string
   readonly VITE_TOKEN_END_POINT: string
   readonly VITE_REDIRECT_URI: string
-  readonly VITE_DINGTALK_BIND_MODE?: string
+  /** 国际化文案包 tags（逗号分隔） */
+  readonly VITE_I18N_TAGS?: string
 }
 
 interface ImportMeta {

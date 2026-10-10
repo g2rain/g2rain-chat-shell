@@ -10,17 +10,12 @@
     <div v-if="isEmpty" class="empty-state">
       <h1 class="empty-greeting">我能帮你什么忙吗{{ greetingSuffix }}</h1>
       <ChatInput
-        :disabled="streaming"
-        :pending-actions="pendingActions"
-        :agents="agents"
-        :models="models"
-        :agent-id="agentId"
-        :model-profile-id="modelProfileId"
+        v-bind="composerBind"
+        v-model:agent-id="agentId"
+        v-model:model-profile-id="modelProfileId"
         empty-layout
         @send="emit('send', $event)"
-        @action="(action, userInput) => emit('action', action, userInput)"
-        @update:agent-id="emit('update:agentId', $event)"
-        @update:model-profile-id="emit('update:modelProfileId', $event)"
+        @action="onAction"
       />
     </div>
 
@@ -46,16 +41,11 @@
           <ScrollDownIcon />
         </button>
         <ChatInput
-          :disabled="streaming"
-          :pending-actions="pendingActions"
-          :agents="agents"
-          :models="models"
-          :agent-id="agentId"
-          :model-profile-id="modelProfileId"
+          v-bind="composerBind"
+          v-model:agent-id="agentId"
+          v-model:model-profile-id="modelProfileId"
           @send="emit('send', $event)"
-          @action="(action, userInput) => emit('action', action, userInput)"
-          @update:agent-id="emit('update:agentId', $event)"
-          @update:model-profile-id="emit('update:modelProfileId', $event)"
+          @action="onAction"
         />
       </div>
     </template>
@@ -86,16 +76,15 @@ const props = defineProps<{
   greetingName?: string | null
   agents: AgentProfileItem[]
   models: ModelProfileItem[]
-  agentId: number | null
-  modelProfileId: number | null
 }>()
+
+const agentId = defineModel<number | null>('agentId', { required: true })
+const modelProfileId = defineModel<number | null>('modelProfileId', { required: true })
 
 const emit = defineEmits<{
   send: [text: string]
   action: [action: ResumeAction, userInput?: string]
   retry: []
-  'update:agentId': [value: number | null]
-  'update:modelProfileId': [value: number | null]
 }>()
 
 const scrollRef = ref<HTMLElement | null>(null)
@@ -109,6 +98,17 @@ const greetingSuffix = computed(() => {
   const name = props.greetingName?.trim()
   return name ? `，${name}？` : '？'
 })
+
+const composerBind = computed(() => ({
+  disabled: props.streaming,
+  pendingActions: props.pendingActions,
+  agents: props.agents,
+  models: props.models,
+}))
+
+function onAction(action: ResumeAction, userInput?: string): void {
+  emit('action', action, userInput)
+}
 
 function isNearBottom(el: HTMLElement): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight < 80

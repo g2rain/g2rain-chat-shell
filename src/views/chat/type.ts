@@ -20,18 +20,16 @@ export interface TurnRequest {
   action?: ResumeAction
 }
 
+/** 对应 studio `/agent_profile/options`（仅 id + 名称） */
 export interface AgentProfileItem {
   id: number
-  agentCode?: string
   agentName: string
-  status?: string
 }
 
+/** 对应 model `/model_service_profile/options`（仅 id + modelName） */
 export interface ModelProfileItem {
   id: number
-  modelName?: string
-  description?: string
-  status?: string
+  modelName: string
 }
 
 export interface ChatConversation {
