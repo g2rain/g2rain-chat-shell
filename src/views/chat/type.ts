@@ -14,8 +14,8 @@ export interface TurnRequest {
   channel: string
   conversationId?: string
   agentId?: number
-  /** 模型服务配置 id；空则走平台默认模型（后端暂未消费时可忽略） */
-  modelProfileId?: number
+  /** 本轮选用的模型名；空则由模型服务按默认路由 */
+  model?: string
   userInput?: string
   action?: ResumeAction
 }
@@ -26,9 +26,9 @@ export interface AgentProfileItem {
   agentName: string
 }
 
-/** 对应 model `/model_service_profile/options`（仅 id + modelName） */
+/** 对应 model `/model_service_profile/options`；下拉 value/展示用 modelName */
 export interface ModelProfileItem {
-  id: number
+  id?: number
   modelName: string
 }
 

@@ -106,11 +106,11 @@ export class ChatApi {
     return (res.data ?? []).filter((item) => item.id != null && item.agentName)
   }
 
-  /** g2rain-model-nexus：ACTIVE 模型下拉（id + modelName） */
+  /** g2rain-model-nexus：ACTIVE 模型下拉（选项 value/展示均用 modelName） */
   static async listModels(): Promise<ModelProfileItem[]> {
     const http = getHttpClient()
     const res = await http.client.get<ModelProfileItem[]>('/model/model_service_profile/options')
-    return (res.data ?? []).filter((item) => item.id != null && item.modelName)
+    return (res.data ?? []).filter((item) => item.modelName)
   }
 
   static async listConversations(): Promise<ChatConversation[]> {

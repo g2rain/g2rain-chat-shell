@@ -12,7 +12,7 @@
       <ChatInput
         v-bind="composerBind"
         v-model:agent-id="agentId"
-        v-model:model-profile-id="modelProfileId"
+        v-model:model="model"
         empty-layout
         @send="emit('send', $event)"
         @action="onAction"
@@ -43,7 +43,7 @@
         <ChatInput
           v-bind="composerBind"
           v-model:agent-id="agentId"
-          v-model:model-profile-id="modelProfileId"
+          v-model:model="model"
           @send="emit('send', $event)"
           @action="onAction"
         />
@@ -79,7 +79,7 @@ const props = defineProps<{
 }>()
 
 const agentId = defineModel<number | null>('agentId', { required: true })
-const modelProfileId = defineModel<number | null>('modelProfileId', { required: true })
+const model = defineModel<string | null>('model', { required: true })
 
 const emit = defineEmits<{
   send: [text: string]

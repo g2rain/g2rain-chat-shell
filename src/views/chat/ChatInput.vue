@@ -63,16 +63,16 @@
             <label class="composer-select">
               <select
                 class="composer-select__native"
-                :value="modelProfileId == null ? '' : String(modelProfileId)"
+                :value="model ?? ''"
                 :disabled="disabled"
                 aria-label="模型"
-                @change="modelProfileId = parseSelectId($event)"
+                @change="model = parseSelectModel($event)"
               >
                 <option value="">默认模型</option>
                 <option
                   v-for="item in models"
-                  :key="item.id"
-                  :value="String(item.id)"
+                  :key="item.modelName"
+                  :value="item.modelName"
                 >
                   {{ item.modelName }}
                 </option>
@@ -113,7 +113,7 @@ const props = defineProps<{
 }>()
 
 const agentId = defineModel<number | null>('agentId', { required: true })
-const modelProfileId = defineModel<number | null>('modelProfileId', { required: true })
+const model = defineModel<string | null>('model', { required: true })
 
 const emit = defineEmits<{
   send: [text: string]
@@ -143,6 +143,11 @@ const visibleActions = computed(() => {
 function parseSelectId(event: Event): number | null {
   const value = (event.target as HTMLSelectElement).value
   return value === '' ? null : Number(value)
+}
+
+function parseSelectModel(event: Event): string | null {
+  const value = (event.target as HTMLSelectElement).value
+  return value === '' ? null : value
 }
 
 function autoResize(): void {

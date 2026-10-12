@@ -26,7 +26,7 @@
         :agents="agents"
         :models="models"
         v-model:agent-id="selectedAgentId"
-        v-model:model-profile-id="selectedModelProfileId"
+        v-model:model="selectedModel"
         @send="sendUserInput"
         @action="sendAction"
         @retry="retryLast"
@@ -73,7 +73,7 @@ const lastUserInput = ref<string | null>(null)
 const errorMessage = ref<string | null>(null)
 /** null = 默认路由 / 默认模型 */
 const selectedAgentId = ref<number | null>(null)
-const selectedModelProfileId = ref<number | null>(null)
+const selectedModel = ref<string | null>(null)
 const agents = ref<AgentProfileItem[]>([])
 const models = ref<ModelProfileItem[]>([])
 
@@ -95,8 +95,8 @@ function withComposerSelection(req: TurnRequest): TurnRequest {
   if (selectedAgentId.value != null) {
     req.agentId = selectedAgentId.value
   }
-  if (selectedModelProfileId.value != null) {
-    req.modelProfileId = selectedModelProfileId.value
+  if (selectedModel.value != null) {
+    req.model = selectedModel.value
   }
   return req
 }

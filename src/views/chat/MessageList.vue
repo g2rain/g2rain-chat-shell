@@ -16,12 +16,12 @@
               <button
                 type="button"
                 class="copy-btn"
-                :class="{ copied: copiedId === message.id }"
                 :title="copiedId === message.id ? '已复制' : '复制'"
                 :aria-label="copiedId === message.id ? '已复制' : '复制'"
                 @click="copyMessage(message)"
               >
-                <CopyIcon />
+                <CheckIcon v-if="copiedId === message.id" />
+                <CopyIcon v-else />
               </button>
             </div>
           </div>
@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ChatMessageItem } from './type'
+import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
 
 defineProps<{
@@ -186,10 +187,6 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 .copy-btn:hover {
   background: var(--g2-bg-muted, #f5f5f5);
   color: var(--g2-text-primary);
-}
-
-.copy-btn.copied {
-  color: var(--g2-color-success, #67c23a);
 }
 
 .progress-text {
