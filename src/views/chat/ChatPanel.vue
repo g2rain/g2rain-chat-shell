@@ -206,7 +206,7 @@ watch(
 
 .jump-bottom {
   position: relative;
-  z-index: 5;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -235,7 +235,7 @@ watch(
   top: 12px;
   right: 16px;
   left: 16px;
-  z-index: 6;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;

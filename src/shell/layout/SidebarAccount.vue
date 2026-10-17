@@ -334,7 +334,7 @@ async function logout(): Promise<void> {
   top: 0;
   /* 与一级保持可见间隙（对齐 ChatGPT），不叠在一起 */
   left: calc(100% + 8px);
-  z-index: 10;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -425,6 +425,7 @@ async function logout(): Promise<void> {
 
 <style>
 .sidebar-account-popper.el-popper {
+  z-index: 3000 !important;
   border-radius: 14px;
   padding: 6px;
   overflow: visible;
