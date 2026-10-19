@@ -242,7 +242,7 @@ watch(draft, () => {
 
 .composer {
   position: relative;
-  z-index: 5;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;

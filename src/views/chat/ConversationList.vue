@@ -487,7 +487,7 @@ onBeforeUnmount(() => {
 
 .item-menu {
   position: fixed;
-  z-index: 1000;
+  z-index: 3000;
   min-width: 120px;
   width: max-content;
   padding: 4px;
