@@ -170,12 +170,13 @@ async function deleteConversation(id: number): Promise<void> {
   }
 }
 
-function appendMessage(role: 'USER' | 'AGENT', content: string): void {
+function appendMessage(role: 'USER' | 'AGENT', content: string, elapsedMs?: number): void {
   messages.value.push({
     id: Generator.random(),
     role,
     content,
     createdAtMs: Date.now(),
+    elapsedMs,
   })
 }
 
@@ -189,6 +190,8 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
 
   streaming.value = true
   clearTurnUi({ clearError: true })
+  progressText.value = '正在执行'
+  const startedAt = Date.now()
 
   abortController?.abort()
   abortController = new AbortController()
@@ -212,7 +215,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
           activeConversationId.value = event.conversationId
         }
         if (event.text) {
-          appendMessage('AGENT', event.text)
+          appendMessage('AGENT', event.text, Date.now() - startedAt)
         }
         pendingActions.value =
           event.status === 'WAITING' && event.actions?.length
@@ -232,6 +235,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
     }
   } finally {
     streaming.value = false
+    progressText.value = null
     abortController = null
   }
 }
