@@ -55,6 +55,8 @@ export interface ChatMessageItem {
   role: 'USER' | 'AGENT'
   content: string
   createdAtMs?: number
+  /** 本轮执行耗时，仅当前会话内实时回合有值 */
+  elapsedMs?: number
 }
 
 export interface PendingTurnActions {

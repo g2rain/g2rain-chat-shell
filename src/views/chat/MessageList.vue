@@ -11,6 +11,9 @@
       >
         <div class="message-row__inner">
           <div class="message-bubble">
+            <div v-if="message.elapsedMs != null" class="message-elapsed">
+              已执行 {{ formatDuration(message.elapsedMs) }}
+            </div>
             <pre class="message-text">{{ message.content }}</pre>
             <div class="message-actions">
               <button
@@ -32,6 +35,7 @@
         <div class="message-row__inner">
           <div class="message-bubble progress">
             <span class="progress-text">{{ progressText }}</span>
+            <span class="progress-elapsed">{{ elapsed }}</span>
           </div>
         </div>
       </div>
@@ -40,16 +44,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChatMessageItem } from './type'
+import { formatDuration } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
 
-defineProps<{
+const props = defineProps<{
   messages: ChatMessageItem[]
   loading: boolean
   progressText: string | null
 }>()
+
+/** 进度出现即开始计时，消失即停止 */
+const now = ref(Date.now())
+let startedAt = 0
+let ticker: ReturnType<typeof setInterval> | null = null
+
+function stopTicker(): void {
+  if (ticker) clearInterval(ticker)
+  ticker = null
+}
+
+watch(
+  () => props.progressText != null,
+  (active) => {
+    stopTicker()
+    if (!active) return
+    startedAt = Date.now()
+    now.value = startedAt
+    ticker = setInterval(() => (now.value = Date.now()), 1000)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(stopTicker)
+
+const elapsed = computed(() => formatDuration(now.value - startedAt))
 
 const copiedId = ref<string | null>(null)
 let copiedTimer: ReturnType<typeof setTimeout> | null = null
@@ -131,8 +162,15 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 }
 
 .message-bubble.progress {
-  color: var(--g2-text-secondary);
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
   font-size: 14px;
+}
+
+.message-elapsed {
+  font-size: 13px;
+  color: var(--g2-text-secondary);
 }
 
 .message-text {
@@ -189,7 +227,41 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   color: var(--g2-text-primary);
 }
 
+/* 文字流光：渐变高光从左向右扫过 */
 .progress-text {
-  font-style: italic;
+  color: transparent;
+  background: linear-gradient(
+      90deg,
+      var(--g2-text-secondary, #8e8e8e) 0%,
+      var(--g2-text-secondary, #8e8e8e) 40%,
+      var(--g2-text-primary, #1f1f1f) 50%,
+      var(--g2-text-secondary, #8e8e8e) 60%,
+      var(--g2-text-secondary, #8e8e8e) 100%
+    )
+    0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: progress-shimmer 2s linear infinite;
+}
+
+.progress-elapsed {
+  color: var(--g2-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes progress-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-text {
+    animation: none;
+    color: var(--g2-text-secondary);
+  }
 }
 </style>

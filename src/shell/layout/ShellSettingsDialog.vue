@@ -4,6 +4,7 @@
     class="shell-settings-dialog"
     width="720px"
     align-center
+    append-to-body
     destroy-on-close
     :show-close="false"
     @update:model-value="emit('update:modelValue', $event)"
