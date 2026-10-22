@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { jwtVerify } from 'jose'
+import { decodeJwt, jwtVerify } from 'jose'
 import type { DpopClient } from '@g2rain/http'
 import { getApplicationCode } from '../../shared/env'
 import { publicKeyStringToJwk } from '../../shared/jwt'
@@ -68,6 +68,27 @@ function belongsToCurrentShell(state: PersistedTokenState): boolean {
   return scopes.some((scope) => scope.applicationCode === code)
 }
 
+/**
+ * 旧版本持久化的 claims 没有展示字段（姓名、机构名称等）：从当初已验签保存的 tokenString 补齐，
+ * 只补展示与会话类型，不参与鉴权判断。
+ */
+function withDisplayClaims(state: PersistedTokenState | null): PersistedTokenState | null {
+  const claims = state?.token
+  if (!claims || !state.tokenString || (claims.sessionType && claims.organName !== undefined)) {
+    return state
+  }
+  try {
+    const payload = decodeJwt(state.tokenString)
+    claims.sessionType ??= (payload.sessionType as string) || undefined
+    claims.name ??= (payload.name as string) || undefined
+    claims.organName ??= (payload.organName as string) || undefined
+    claims.adminUser ??= payload.adminUser === true
+  } catch {
+    /* 解析失败保持原样，下次换票或刷新时会写入完整 claims */
+  }
+  return state
+}
+
 function readPersisted(): PersistedTokenState | null {
   try {
     const storageKey = getTokenStorageKey()
@@ -109,7 +130,7 @@ function clearPersisted(): void {
  * Never put tokenString into public props, URL, Header UI, or durable logs.
  */
 export const useAccessTokenStore = defineStore('shell-access-token', () => {
-  const persisted = readPersisted()
+  const persisted = withDisplayClaims(readPersisted())
 
   const client = ref<DpopClient | null>(persisted?.client ?? null)
   const token = ref<AccessTokenClaims | null>(persisted?.token ?? null)

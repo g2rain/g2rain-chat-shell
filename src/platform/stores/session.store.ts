@@ -83,9 +83,10 @@ export const useSessionStore = defineStore('shell-session', () => {
       return
     }
 
+    // 没有机构名称时不展示机构，避免出现"机构 2"这类内部 ID
     const summary: SessionOrganSummary | null = claims.organId != null
       ? {
-          name: claims.organName || `机构 ${claims.organId}`,
+          name: claims.organName ?? '',
           organCode: String(claims.organId),
           admin: claims.adminCompany,
         }

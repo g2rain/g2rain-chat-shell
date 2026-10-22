@@ -14,7 +14,7 @@
         <template v-else>
           <span class="avatar">访</span>
           <span class="profile-name">
-            访客<span v-if="organ" class="visitor-organ"> · {{ organ.name }}</span>
+            访客<span v-if="organ?.name" class="visitor-organ"> · {{ organ.name }}</span>
           </span>
           <button type="button" class="visitor-login" @click="login">登录</button>
         </template>
