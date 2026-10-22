@@ -41,9 +41,10 @@ export function envConfigPlugin(): Plugin {
       const contextPathForUrl = getContextPathForUrl()
 
       const configContent = `// env-config.js
-// Replaced at container start by docker-entrypoint.sh (SSO_BASE_URL)
+// Replaced at container start by docker-entrypoint.sh (SSO_BASE_URL, ANONYMOUS_ENTRY_KEY)
 window._env_ = {
   VITE_SSO_BASE_URL: '__SSO_BASE_URL__',
+  VITE_ANONYMOUS_ENTRY_KEY: '__ANONYMOUS_ENTRY_KEY__',
 };
 `
       writeFileSync(resolve(outDir, 'env-config.js'), configContent, 'utf-8')

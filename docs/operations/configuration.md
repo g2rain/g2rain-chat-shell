@@ -10,6 +10,7 @@
 | `VITE_BACKEND_ORIGIN` | 开发期 Vite 代理上游（`/api`、`/auth`、`/lua`、`/keys`） | 必填（示例 `http://localhost:8080`） | **不写**（同域，与 main-shell 一致） |
 | `VITE_APPLICATION_CODE` | DPoP `acd` / 应用标识 | `g2rain-chat-shell` | 同左 |
 | `VITE_SSO_BASE_URL` | IAM / SSO 源（无尾斜杠） | 联调地址 | `${SSO_BASE_URL}` 占位；**运行时**由 `env-config.js` + 容器 `SSO_BASE_URL` 注入（main-shell 同款） |
+| `VITE_ANONYMOUS_ENTRY_KEY` | 默认匿名接入码（`ek_...`），直接访问对话页时使用；为空表示不开放匿名访问，未登录时走员工登录 | 空 | `${ANONYMOUS_ENTRY_KEY}` 占位；**运行时**由 `env-config.js` + 容器 `ANONYMOUS_ENTRY_KEY` 注入 |
 | `VITE_AUTH_END_POINT` | 授权端点 | `/auth/authorize` | 同左 |
 | `VITE_TOKEN_END_POINT` | 换票 / 刷新端点 | `/auth/token` | 同左 |
 | `VITE_REDIRECT_URI` | SSO 回调 path（相对 Context Path） | `/sso_callback` | 同左 |
@@ -17,6 +18,8 @@
 `.env` 用于本地开发；`.env.production` 与 main-shell 对齐（无 `VITE_SERVER_PORT` / `VITE_BACKEND_ORIGIN`）。模板仓保留 CLI 可替换占位符；本地验证前先写成具体值再 `npm run build`。
 
 **生产 SSO：** 构建生成 `dist/env-config.js`（`__SSO_BASE_URL__`）；`docker-entrypoint.sh` 用环境变量 `SSO_BASE_URL` 替换；`getSsoBaseUrl()` 优先读 `window._env_`。deploy 需设置 `SSO_BASE_URL`（如 `${PLATFORM_BASE_URL}`）。
+
+**匿名访问：** 接入码优先级为 URL `?entry=` > 已保存的接入码 > `VITE_ANONYMOUS_ENTRY_KEY`。默认接入码由运营公司在 manager-app「应用授权 → 匿名接入码」中创建，再通过容器环境变量 `ANONYMOUS_ENTRY_KEY` 注入；租户访客通过 `/chat?entry=ek_...` 进入。
 
 ## 源码占位符
 

@@ -5,6 +5,8 @@ export SERVER_PORT=${SERVER_PORT:-8080}
 # Must match image build VITE_CONTEXT_PATH (e.g. /admin)
 export CONTEXT_PATH=${CONTEXT_PATH:-/admin}
 export SSO_BASE_URL=${SSO_BASE_URL:-}
+# 默认匿名接入码（运营公司在接入码管理中创建）；为空表示不开放匿名访问
+export ANONYMOUS_ENTRY_KEY=${ANONYMOUS_ENTRY_KEY:-}
 export APPLICATION_CODE=${APPLICATION_CODE:-g2rain-chat-shell}
 export GATEWAY_HOST=${GATEWAY_HOST:-gateway}
 export GATEWAY_PORT=${GATEWAY_PORT:-8080}
@@ -17,7 +19,8 @@ envsubst '${GATEWAY_HOST} ${GATEWAY_PORT} ${IAM_HOST} ${IAM_PORT} ${SERVER_PORT}
 
 if [ -f /usr/local/openresty/nginx/html/env-config.js ]; then
   sed -i "s|__SSO_BASE_URL__|${SSO_BASE_URL}|g" /usr/local/openresty/nginx/html/env-config.js
-  echo "env-config.js updated: SSO_BASE_URL set"
+  sed -i "s|__ANONYMOUS_ENTRY_KEY__|${ANONYMOUS_ENTRY_KEY}|g" /usr/local/openresty/nginx/html/env-config.js
+  echo "env-config.js updated: SSO_BASE_URL, ANONYMOUS_ENTRY_KEY set"
 else
   echo "env-config.js not found; skip runtime SSO replace"
 fi

@@ -84,7 +84,7 @@ export function createShellRouter(): Router {
     }
 
     const { sso } = await import('../auth/sso')
-    await sso.redirectToSSO()
+    await sso.reauthenticate()
     return false
   })
 

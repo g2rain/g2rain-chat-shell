@@ -19,9 +19,14 @@ export interface AccessTokenClaims {
   refreshExpireAt: number
   adminCompany: boolean
   organId?: number
+  /** USER / PASSPORT / MEMBER / ANONYMOUS */
+  sessionType?: string
 }
 
 export type TokenSessionStatus = 'NORMAL' | 'SSO' | 'LOGOUT'
+
+/** 最近一次发起的授权模式：回调页据此区分员工登录与匿名访客 */
+export type AuthMode = 'USER' | 'ANONYMOUS'
 
 /** Legacy fixed key (pre-namespacing). Migrate once into the namespaced key when claims belong to this shell. */
 const LEGACY_STORAGE_KEY = 'g2rain-shell-token'
@@ -37,6 +42,9 @@ interface PersistedTokenState {
   tokenString: string | null
   logged: boolean
   tokenExpired: boolean
+  /** 匿名接入码：首次从 URL 或部署配置取得后持久化，退出登录也保留 */
+  entryKey?: string | null
+  authMode?: AuthMode | null
 }
 
 function parsePersisted(raw: string | null): PersistedTokenState | null {
@@ -73,11 +81,13 @@ function readPersisted(): PersistedTokenState | null {
   }
 }
 
-function writePersisted(state: PersistedTokenState): void {
+/** @returns 是否写入成功；配额满或隐私模式下失败时访客身份无法跨页面保留 */
+function writePersisted(state: PersistedTokenState): boolean {
   try {
     localStorage.setItem(getTokenStorageKey(), JSON.stringify(state))
+    return true
   } catch {
-    /* ignore quota / private mode */
+    return false
   }
 }
 
@@ -103,6 +113,10 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
   const logged = ref(persisted?.logged ?? false)
   const status = ref<TokenSessionStatus>('NORMAL')
   const tokenExpired = ref(persisted?.tokenExpired ?? false)
+  const entryKey = ref<string | null>(persisted?.entryKey ?? null)
+  const authMode = ref<AuthMode | null>(persisted?.authMode ?? null)
+  /** 本地存储是否可写；不可写时提示访客记录无法保存 */
+  const persistable = ref(true)
 
   const isLogin = computed(() => {
     if (!client.value || !token.value) return false
@@ -117,13 +131,18 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
 
   const organId = computed(() => token.value?.organId)
 
+  /** 当前 token 是否为匿名访客会话 */
+  const isAnonymous = computed(() => token.value?.sessionType === 'ANONYMOUS')
+
   function persistSnapshot(): void {
-    writePersisted({
+    persistable.value = writePersisted({
       client: client.value,
       token: token.value,
       tokenString: tokenString.value,
       logged: logged.value,
       tokenExpired: tokenExpired.value,
+      entryKey: entryKey.value,
+      authMode: authMode.value,
     })
   }
 
@@ -162,6 +181,7 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
       adminCompany: payload.adminCompany === true,
       organId:
         parsedOrganId != null && !Number.isNaN(parsedOrganId) ? parsedOrganId : undefined,
+      sessionType: (payload.sessionType as string) || undefined,
     }
     logged.value = true
     status.value = 'NORMAL'
@@ -172,18 +192,52 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
     persistSnapshot()
   }
 
+  /**
+   * 退出登录：只清 token，保留 DPoP 密钥与接入码。
+   * 访客身份由"机构 + 密钥指纹"决定，保留密钥才能在退出后回到原来的访客。
+   */
   function logout(): void {
     token.value = null
     tokenString.value = null
-    client.value = null
     tokenExpired.value = false
     logged.value = false
     status.value = 'LOGOUT'
-    clearPersisted()
+    if (client.value) {
+      client.value = { ...client.value, isAuthenticated: false }
+    }
+    if (client.value || entryKey.value) {
+      persistSnapshot()
+    } else {
+      clearPersisted()
+    }
   }
 
   function setClient(next: DpopClient | null): void {
     client.value = next
+    persistSnapshot()
+  }
+
+  /**
+   * 采用其他标签页已持久化的密钥（生成密钥前在锁内调用，避免多标签页各生成一把）。
+   *
+   * @returns 是否已有可用密钥
+   */
+  function adoptPersistedClient(): boolean {
+    if (client.value) return true
+    const latest = readPersisted()
+    if (!latest?.client) return false
+    client.value = latest.client
+    entryKey.value = entryKey.value ?? latest.entryKey ?? null
+    return true
+  }
+
+  function setEntryKey(next: string | null): void {
+    entryKey.value = next
+    persistSnapshot()
+  }
+
+  function setAuthMode(next: AuthMode): void {
+    authMode.value = next
     persistSnapshot()
   }
 
@@ -197,10 +251,17 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
     isLogin,
     isAccessTokenValid,
     organId,
+    isAnonymous,
+    entryKey,
+    authMode,
+    persistable,
     setTokenExpired,
     setStatus,
     setTokens,
     setClient,
+    adoptPersistedClient,
+    setEntryKey,
+    setAuthMode,
     logout,
     persistSnapshot,
   }

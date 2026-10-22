@@ -40,6 +40,7 @@ import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
+import { useAccessTokenStore } from '../platform/stores/token.store'
 import { ChatApi } from './chat/api'
 import { historyToChatItems } from './chat/messages'
 import type {
@@ -114,6 +115,8 @@ async function loadConversations(): Promise<void> {
 }
 
 async function loadComposerOptions(): Promise<void> {
+  // 访客不选智能体和模型，走默认路由
+  if (useAccessTokenStore().isAnonymous) return
   const [agentResult, modelResult] = await Promise.allSettled([
     ChatApi.listAgents(),
     ChatApi.listModels(),

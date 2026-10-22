@@ -65,7 +65,8 @@ export const useSessionStore = defineStore('shell-session', () => {
    */
   async function bootstrapSession(): Promise<void> {
     const tokenStore = useAccessTokenStore()
-    if (!tokenStore.isLogin) {
+    // 匿名访客没有员工身份，不查 authority 用户信息
+    if (!tokenStore.isLogin || tokenStore.isAnonymous) {
       clearSession()
       return
     }

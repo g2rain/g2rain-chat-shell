@@ -26,5 +26,6 @@ services:
       IAM_HOST: host.docker.internal
       IAM_PORT: "9000"
       SSO_BASE_URL: ""
+      ANONYMOUS_ENTRY_KEY: ""
     extra_hosts:
       - "host.docker.internal:host-gateway"

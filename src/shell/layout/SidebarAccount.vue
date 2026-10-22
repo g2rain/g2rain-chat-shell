@@ -1,6 +1,25 @@
 <template>
   <div class="sidebar-account" :class="{ collapsed }">
+    <!-- 访客：只有"登录"入口，登录后沿用同一把密钥 -->
+    <template v-if="!isLoggedIn">
+      <button
+        type="button"
+        class="profile-trigger login-trigger"
+        :class="{ collapsed }"
+        title="登录"
+        aria-label="登录"
+        @click="login"
+      >
+        <span class="avatar"><el-icon><User /></el-icon></span>
+        <span v-if="!collapsed" class="profile-name">登录</span>
+      </button>
+      <p v-if="!collapsed && !tokenStore.persistable" class="visitor-hint">
+        当前浏览器无法保存访客记录，关闭页面后对话将丢失
+      </p>
+    </template>
+
     <el-popover
+      v-else
       v-model:visible="menuOpen"
       :placement="collapsed ? 'right-end' : 'top-start'"
       :width="280"
@@ -94,6 +113,7 @@ import {
   clearReturnUrl,
   resetNavigationRestoreState,
 } from '../../runtime/navigation/sub-app-redirect'
+import { sso } from '../../runtime/auth/sso'
 import ShellSettingsDialog from './ShellSettingsDialog.vue'
 
 defineProps<{
@@ -173,6 +193,13 @@ function openSettings(): void {
   settingsOpen.value = true
 }
 
+function login(): void {
+  void sso.redirectToSSO()
+}
+
+/**
+ * 退出登录：保留密钥与接入码；开放匿名访问时回到原来的访客身份，否则进入退出页。
+ */
 async function logout(): Promise<void> {
   menuOpen.value = false
   await runtimeStore.releaseAllOnLogout()
@@ -181,11 +208,22 @@ async function logout(): Promise<void> {
   resetNavigationRestoreState()
   tokenStore.logout()
   session.clearSession()
+  if (sso.canAuthorizeAnonymous()) {
+    await sso.authorizeAnonymous()
+    return
+  }
   await router.push('/logout')
 }
 </script>
 
 <style scoped>
+.visitor-hint {
+  margin: 4px 10px 0;
+  color: var(--g2-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .sidebar-account {
   position: relative;
   z-index: 2;
