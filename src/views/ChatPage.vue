@@ -57,6 +57,7 @@ import ChatPanel from './chat/ChatPanel.vue'
 
 const sessionStore = useSessionStore()
 const { user } = storeToRefs(sessionStore)
+// 访客没有员工身份（user 为空），问候语不带名字
 const greetingName = computed(() => user.value?.displayName ?? null)
 
 const sidebarCollapsed = ref(false)

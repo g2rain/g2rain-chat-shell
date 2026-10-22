@@ -63,41 +63,59 @@ export const useSessionStore = defineStore('shell-session', () => {
    * When Token Store reports login, load non-sensitive user/organ for Header.
    * Does not fabricate identity when not logged in.
    */
+  /** 当前是匿名访客（有访客 token，但没有员工身份） */
+  const isVisitor = computed(() => {
+    const tokenStore = useAccessTokenStore()
+    return tokenStore.isLogin && tokenStore.isAnonymous
+  })
+
+  /**
+   * 用已验签的 token 填充身份与机构，不再阻塞请求 authority 用户信息。
+   * 登录账号等 token 里没有的字段，在员工打开账号菜单时由 {@link loadAccount} 按需补齐。
+   */
   async function bootstrapSession(): Promise<void> {
     const tokenStore = useAccessTokenStore()
-    // 匿名访客没有员工身份，不查 authority 用户信息
-    if (!tokenStore.isLogin || tokenStore.isAnonymous) {
+    // 身份可能已变化（登录、退出、切换机构），丢弃上一身份的 authority 缓存
+    clearAuthorityUserCache()
+    const claims = tokenStore.token
+    if (!tokenStore.isLogin || !claims) {
       clearSession()
       return
     }
 
+    const summary: SessionOrganSummary | null = claims.organId != null
+      ? {
+          name: claims.organName || `机构 ${claims.organId}`,
+          organCode: String(claims.organId),
+          admin: claims.adminCompany,
+        }
+      : null
+    setOrgan(summary)
+    setAvailableOrgans(summary ? [summary] : [])
+
+    if (tokenStore.isAnonymous) {
+      setUser(null)
+      return
+    }
+
     openAuthBridge()
+    setUser({ displayName: claims.name || '用户', account: '' })
+  }
 
+  /**
+   * 补齐登录账号：员工首次打开账号菜单时查询一次，之后命中 authority 缓存；访客不查。
+   */
+  async function loadAccount(): Promise<void> {
+    const current = user.value
+    if (!current || current.account || isVisitor.value) return
     try {
-      const authority = await getAuthorityUser(true)
-      const displayName = authority.realName || authority.passport?.realName || '用户'
+      const authority = await getAuthorityUser()
       const account = authority.passport?.username || authority.email || String(authority.id)
-      setUser({ displayName, account })
-
-      if (authority.organ) {
-        const summary: SessionOrganSummary = {
-          name: authority.organ.organName,
-          organCode: String(authority.organ.id),
-          admin: authority.organ.admin,
-        }
-        setOrgan(summary)
-        setAvailableOrgans([summary])
-      } else if (authority.organId != null) {
-        const summary: SessionOrganSummary = {
-          name: `机构 ${authority.organId}`,
-          organCode: String(authority.organId),
-        }
-        setOrgan(summary)
-        setAvailableOrgans([summary])
+      if (user.value === current) {
+        setUser({ ...current, account })
       }
     } catch (error) {
       console.warn('[session] failed to load authority user:', error)
-      setUser({ displayName: '已登录用户', account: '—' })
     }
   }
 
@@ -106,6 +124,7 @@ export const useSessionStore = defineStore('shell-session', () => {
     organ,
     availableOrgans,
     isLoggedIn,
+    isVisitor,
     hasOrgan,
     setUser,
     setOrgan,
@@ -113,5 +132,6 @@ export const useSessionStore = defineStore('shell-session', () => {
     switchOrgan,
     clearSession,
     bootstrapSession,
+    loadAccount,
   }
 })

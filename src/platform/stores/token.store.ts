@@ -21,6 +21,10 @@ export interface AccessTokenClaims {
   organId?: number
   /** USER / PASSPORT / MEMBER / ANONYMOUS */
   sessionType?: string
+  /** 展示用：姓名（访客为"访客"）、机构名称、是否机构管理员 */
+  name?: string
+  organName?: string
+  adminUser?: boolean
 }
 
 export type TokenSessionStatus = 'NORMAL' | 'SSO' | 'LOGOUT'
@@ -182,6 +186,9 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
       organId:
         parsedOrganId != null && !Number.isNaN(parsedOrganId) ? parsedOrganId : undefined,
       sessionType: (payload.sessionType as string) || undefined,
+      name: (payload.name as string) || undefined,
+      organName: (payload.organName as string) || undefined,
+      adminUser: payload.adminUser === true,
     }
     logged.value = true
     status.value = 'NORMAL'
