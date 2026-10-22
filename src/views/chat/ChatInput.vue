@@ -44,7 +44,7 @@
         />
         <div class="composer__footer">
           <div class="composer__tools">
-            <label v-if="agents.length" class="composer-select">
+            <label class="composer-select">
               <select
                 class="composer-select__native"
                 :value="agentId == null ? '' : String(agentId)"
@@ -62,7 +62,7 @@
                 </option>
               </select>
             </label>
-            <label v-if="models.length" class="composer-select">
+            <label class="composer-select">
               <select
                 class="composer-select__native"
                 :value="model ?? ''"
