@@ -115,27 +115,23 @@ export class ChatApi {
 
   static async listConversations(): Promise<ChatConversation[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatConversation[]>('/harness/chat_conversation/list')
-    const rows = res.data ?? []
-    return [...rows].sort((a, b) => {
-      const ta = a.lastMessageTime ? Date.parse(a.lastMessageTime) : 0
-      const tb = b.lastMessageTime ? Date.parse(b.lastMessageTime) : 0
-      return tb - ta
-    })
+    // 只返回当前员工或访客自己的会话，服务端已按最近消息时间倒序
+    const res = await http.client.get<ChatConversation[]>('/harness/chat/conversation/list')
+    return res.data ?? []
   }
 
   static async listMessages(conversationId: string): Promise<ChatMessageRecord[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatMessageRecord[]>('/harness/chat_message/list', {
+    const res = await http.client.get<ChatMessageRecord[]>('/harness/chat/message/list', {
       conversationId,
     })
     return res.data ?? []
   }
 
-  /** DELETE /harness/chat_conversation/{id} — 主键 id，非 conversationId */
+  /** DELETE /harness/chat/conversation/{id} — 主键 id，非 conversationId；只能删除自己的会话 */
   static async deleteConversation(id: number): Promise<void> {
     const http = getHttpClient()
-    await http.client.delete(`/harness/chat_conversation/${id}`)
+    await http.client.delete(`/harness/chat/conversation/${id}`)
   }
 
   static async sendTurn(

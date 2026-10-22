@@ -4,6 +4,12 @@
       <div class="spinner" />
       <p>正在处理认证...</p>
     </div>
+    <div v-else-if="error && anonymous" class="panel error">
+      <h2>该入口暂不可用</h2>
+      <p>{{ error }}</p>
+      <button type="button" class="btn primary" @click="reenter">重新进入</button>
+      <button type="button" class="btn" @click="goToLogin">登录</button>
+    </div>
     <div v-else-if="error" class="panel error">
       <h2>认证失败</h2>
       <p>{{ error }}</p>
@@ -27,6 +33,8 @@ import { sso } from '../../runtime/auth/sso'
 const router = useRouter()
 const isLoading = ref(true)
 const error = ref<string | null>(null)
+/** 本次回调来自匿名授权：失败时不自动重跳，避免接入码停用后循环跳转 */
+const anonymous = useAccessTokenStore().authMode === 'ANONYMOUS'
 
 async function processCallback(): Promise<void> {
   const tokenStore = useAccessTokenStore()
@@ -61,6 +69,10 @@ function retry(): void {
 
 function goToLogin(): void {
   void sso.redirectToSSO()
+}
+
+function reenter(): void {
+  void sso.authorizeAnonymous()
 }
 
 onMounted(() => {

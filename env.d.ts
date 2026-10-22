@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_END_POINT: string
   readonly VITE_TOKEN_END_POINT: string
   readonly VITE_REDIRECT_URI: string
+  /** 默认匿名接入码（ek_...）；为空表示不开放匿名访问 */
+  readonly VITE_ANONYMOUS_ENTRY_KEY?: string
   /** 国际化文案包 tags（逗号分隔） */
   readonly VITE_I18N_TAGS?: string
 }

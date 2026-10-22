@@ -38,7 +38,9 @@
           placeholder="有问题，随便问"
           :disabled="disabled"
           @input="autoResize"
-          @keydown.enter.exact.prevent="submit"
+          @keydown.enter="onEnter"
+          @compositionstart="composing = true"
+          @compositionend="onCompositionEnd"
         />
         <div class="composer__footer">
           <div class="composer__tools">
@@ -155,6 +157,39 @@ function autoResize(): void {
   if (!el) return
   el.style.height = 'auto'
   el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+}
+
+/** 输入法组合输入中（中文、日文等候选上屏前） */
+const composing = ref(false)
+
+/**
+ * 组合结束后延到下一帧再清标记：部分浏览器先触发 compositionend、再触发确认上屏的那次 Enter。
+ */
+function onCompositionEnd(): void {
+  requestAnimationFrame(() => {
+    composing.value = false
+  })
+}
+
+/** 触屏设备（手机、平板）：软键盘回车用于换行，靠发送按钮发送 */
+function isTouchDevice(): boolean {
+  return window.matchMedia?.('(pointer: coarse)').matches ?? false
+}
+
+/**
+ * 回车发送；以下情况保留默认行为（上屏或换行），不发送：
+ * <ul>
+ *   <li>输入法组合中：isComposing（Chrome / Firefox），keyCode 229（Safari 确认上屏时 isComposing 已为 false），以及组合事件兜底</li>
+ *   <li>带修饰键：Shift / Option(Alt) + Enter 换行，Ctrl / Cmd + Enter 不做处理</li>
+ *   <li>触屏设备</li>
+ * </ul>
+ */
+function onEnter(event: KeyboardEvent): void {
+  if (event.isComposing || event.keyCode === 229 || composing.value) return
+  if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return
+  if (isTouchDevice()) return
+  event.preventDefault()
+  submit()
 }
 
 function submit(): void {

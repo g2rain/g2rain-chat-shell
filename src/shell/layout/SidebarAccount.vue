@@ -1,12 +1,52 @@
 <template>
   <div class="sidebar-account" :class="{ collapsed }">
+    <!-- 访客：显示访客身份与所属机构，右侧"登录"；不弹菜单（访客没有设置与退出） -->
+    <template v-if="isVisitor">
+      <div class="profile-trigger visitor-row" :class="{ collapsed }">
+        <button
+          v-if="collapsed"
+          type="button"
+          class="avatar avatar-button"
+          title="访客，点击登录"
+          aria-label="登录"
+          @click="login"
+        >访</button>
+        <template v-else>
+          <span class="avatar">访</span>
+          <span class="profile-name">
+            访客<span v-if="organ?.name" class="visitor-organ"> · {{ organ.name }}</span>
+          </span>
+          <button type="button" class="visitor-login" @click="login">登录</button>
+        </template>
+      </div>
+      <p v-if="!collapsed && !tokenStore.persistable" class="visitor-hint">
+        当前浏览器无法保存访客记录，关闭页面后对话将丢失
+      </p>
+    </template>
+
+    <!-- 尚未取得任何身份（通常正在跳转授权） -->
+    <button
+      v-else-if="!isLoggedIn"
+      type="button"
+      class="profile-trigger"
+      :class="{ collapsed }"
+      title="登录"
+      aria-label="登录"
+      @click="login"
+    >
+      <span class="avatar"><el-icon><User /></el-icon></span>
+      <span v-if="!collapsed" class="profile-name">登录</span>
+    </button>
+
     <el-popover
+      v-else
       v-model:visible="menuOpen"
       :placement="collapsed ? 'right-end' : 'top-start'"
       :width="280"
       trigger="click"
       :hide-after="0"
       popper-class="sidebar-account-popper"
+      @show="session.loadAccount()"
       @after-leave="userFlyoutOpen = false"
     >
       <template #reference>
@@ -94,6 +134,7 @@ import {
   clearReturnUrl,
   resetNavigationRestoreState,
 } from '../../runtime/navigation/sub-app-redirect'
+import { sso } from '../../runtime/auth/sso'
 import ShellSettingsDialog from './ShellSettingsDialog.vue'
 
 defineProps<{
@@ -106,7 +147,7 @@ const runtimeStore = useRuntimeStore()
 const tokenStore = useAccessTokenStore()
 const menuStore = useMenuStore()
 
-const { user, organ, isLoggedIn } = storeToRefs(session)
+const { user, organ, isLoggedIn, isVisitor } = storeToRefs(session)
 const settingsOpen = ref(false)
 const menuOpen = ref(false)
 const userFlyoutOpen = ref(false)
@@ -120,7 +161,7 @@ const displayName = computed(() => {
 
 const accountLabel = computed(() => {
   if (!isLoggedIn.value || !user.value) return '未登录'
-  return user.value.account || user.value.displayName
+  return user.value.account || '加载中…'
 })
 
 const organName = computed(() => organ.value?.name || '未选择机构')
@@ -173,6 +214,13 @@ function openSettings(): void {
   settingsOpen.value = true
 }
 
+function login(): void {
+  void sso.redirectToSSO()
+}
+
+/**
+ * 退出登录：保留密钥与接入码；开放匿名访问时回到原来的访客身份，否则进入退出页。
+ */
 async function logout(): Promise<void> {
   menuOpen.value = false
   await runtimeStore.releaseAllOnLogout()
@@ -181,11 +229,55 @@ async function logout(): Promise<void> {
   resetNavigationRestoreState()
   tokenStore.logout()
   session.clearSession()
+  if (sso.canAuthorizeAnonymous()) {
+    await sso.authorizeAnonymous()
+    return
+  }
   await router.push('/logout')
 }
 </script>
 
 <style scoped>
+.visitor-row {
+  cursor: default;
+}
+
+.visitor-row:hover {
+  background: transparent;
+}
+
+.visitor-organ {
+  color: var(--g2-text-secondary);
+}
+
+.visitor-login {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--g2-border-color, #dcdfe6);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--g2-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.visitor-login:hover {
+  background: color-mix(in srgb, var(--g2-text-primary) 6%, transparent);
+}
+
+.avatar-button {
+  border: none;
+  cursor: pointer;
+}
+
+.visitor-hint {
+  margin: 4px 10px 0;
+  color: var(--g2-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .sidebar-account {
   position: relative;
   z-index: 2;
