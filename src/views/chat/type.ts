@@ -1,9 +1,29 @@
 export type TurnStatus = 'DONE' | 'WAITING' | 'FAILED' | 'CANCELLED'
 export type ResumeAction = 'REPLY' | 'CONFIRM' | 'REJECT' | 'CANCEL'
 
+export type StepStage = 'ROUTE' | 'PLAN' | 'NODE' | 'ROUND' | 'MODEL' | 'TOOL' | 'VERIFY'
+export type StepStatus = 'RUNNING' | 'DONE' | 'FAILED'
+
+/** 执行步骤；同一步骤的开始与结束共用 stepId，按 parentStepId 组成层级 */
+export interface TurnStep {
+  stepId: string
+  parentStepId?: string
+  stage: StepStage
+  status: StepStatus
+  title: string
+  detail?: string
+  nodeId?: string
+  round?: number
+  elapsedMs?: number
+  errorCode?: string
+}
+
 export interface TurnEvent {
   type: 'PROGRESS' | 'RESULT'
   conversationId: string
+  traceId?: string
+  /** 执行步骤；仅 PROGRESS */
+  step?: TurnStep
   text?: string
   status?: TurnStatus
   actions?: ResumeAction[]
@@ -12,6 +32,8 @@ export interface TurnEvent {
   createdAtMs?: number
   /** 本轮耗时毫秒，与入库一致；仅 RESULT */
   elapsedMs?: number
+  /** 失败时的业务错误码；仅 RESULT 且 FAILED */
+  errorCode?: string
 }
 
 export interface TurnRequest {
@@ -55,6 +77,9 @@ export interface ChatMessageRecord {
   createdAtMs?: number
   /** 本轮耗时毫秒；仅最终回复 */
   elapsedMs?: number
+  traceId?: string
+  /** 本轮执行步骤；仅最终回复 */
+  progress?: TurnStep[]
 }
 
 export interface ChatMessageItem {
@@ -64,6 +89,12 @@ export interface ChatMessageItem {
   createdAtMs?: number
   /** 本轮执行耗时；仅 AGENT 最终回复，旧消息为空 */
   elapsedMs?: number
+  /** 本轮执行步骤；仅 AGENT 最终回复 */
+  progress?: TurnStep[]
+  /** 本轮追踪号；失败时展示末 6 位 */
+  traceId?: string
+  /** 本轮是否失败 */
+  failed?: boolean
 }
 
 export interface PendingTurnActions {

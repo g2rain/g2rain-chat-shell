@@ -17,7 +17,7 @@
       <ChatPanel
         :messages="messages"
         :loading-messages="loadingMessages"
-        :progress-text="progressText"
+        :live-steps="liveSteps"
         :pending-actions="pendingActions"
         :streaming="streaming"
         :error-message="errorMessage"
@@ -41,7 +41,7 @@ import { storeToRefs } from 'pinia'
 import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
 import { ChatApi } from './chat/api'
-import { historyToChatItems } from './chat/messages'
+import { historyToChatItems, mergeStep } from './chat/messages'
 import type {
   AgentProfileItem,
   ChatConversation,
@@ -50,6 +50,7 @@ import type {
   PendingTurnActions,
   ResumeAction,
   TurnRequest,
+  TurnStep,
 } from './chat/type'
 import ConversationList from './chat/ConversationList.vue'
 import ChatPanel from './chat/ChatPanel.vue'
@@ -68,7 +69,8 @@ const messages = ref<ChatMessageItem[]>([])
 const loadingConversations = ref(false)
 const loadingMessages = ref(false)
 const streaming = ref(false)
-const progressText = ref<string | null>(null)
+/** 本轮执行中的步骤；不在执行时为 null */
+const liveSteps = ref<TurnStep[] | null>(null)
 const pendingActions = ref<PendingTurnActions | null>(null)
 const lastUserInput = ref<string | null>(null)
 const errorMessage = ref<string | null>(null)
@@ -86,7 +88,7 @@ function toErrorMessage(error: unknown, fallback: string): string {
 
 function clearTurnUi(options?: { clearError?: boolean }): void {
   pendingActions.value = null
-  progressText.value = null
+  liveSteps.value = null
   if (options?.clearError) {
     errorMessage.value = null
   }
@@ -171,13 +173,13 @@ async function deleteConversation(id: number): Promise<void> {
   }
 }
 
-function appendMessage(role: 'USER' | 'AGENT', content: string, createdAtMs?: number, elapsedMs?: number): void {
+function appendMessage(role: 'USER' | 'AGENT', content: string, extra?: Partial<ChatMessageItem>): void {
   messages.value.push({
     id: Generator.random(),
     role,
     content,
-    createdAtMs: createdAtMs ?? Date.now(),
-    elapsedMs,
+    ...extra,
+    createdAtMs: extra?.createdAtMs ?? Date.now(),
   })
 }
 
@@ -191,7 +193,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
 
   streaming.value = true
   clearTurnUi({ clearError: true })
-  progressText.value = '正在执行'
+  liveSteps.value = []
   const startedAt = Date.now()
 
   abortController?.abort()
@@ -203,21 +205,28 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
       req,
       traceId,
       (event) => {
-        if (event.text) {
-          progressText.value = event.text
+        if (event.step) {
+          liveSteps.value = mergeStep(liveSteps.value ?? [], event.step)
         }
         if (event.conversationId && !activeConversationId.value) {
           activeConversationId.value = event.conversationId
         }
       },
       (event) => {
-        progressText.value = null
+        const steps = liveSteps.value ?? []
+        liveSteps.value = null
         if (event.conversationId) {
           activeConversationId.value = event.conversationId
         }
         if (event.text) {
-          // 优先服务端时间与耗时（与入库一致），缺失时用本地兜底
-          appendMessage('AGENT', event.text, event.createdAtMs, event.elapsedMs ?? Date.now() - startedAt)
+          // 优先服务端时间与耗时（与入库一致），缺失时用本地兜底；执行过程定格到这条回复上
+          appendMessage('AGENT', event.text, {
+            createdAtMs: event.createdAtMs,
+            elapsedMs: event.elapsedMs ?? Date.now() - startedAt,
+            progress: steps.length ? steps : undefined,
+            traceId: event.traceId ?? traceId,
+            failed: event.status === 'FAILED',
+          })
         }
         pendingActions.value =
           event.status === 'WAITING' && event.actions?.length
@@ -237,7 +246,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
     }
   } finally {
     streaming.value = false
-    progressText.value = null
+    liveSteps.value = null
     abortController = null
   }
 }

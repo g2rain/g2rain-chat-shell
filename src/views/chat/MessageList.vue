@@ -11,6 +11,11 @@
       >
         <div class="message-row__inner">
           <div class="message-bubble">
+            <ProgressTimeline
+              v-if="message.role !== 'USER' && message.progress?.length"
+              :steps="message.progress"
+              :elapsed-ms="message.elapsedMs"
+            />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
             <div class="message-actions">
@@ -22,6 +27,9 @@
                 {{ formatMessageTime(message.createdAtMs) }}
                 <template v-if="message.role !== 'USER' && message.elapsedMs != null">
                   · 耗时 {{ formatDuration(message.elapsedMs) }}
+                </template>
+                <template v-if="message.failed && message.traceId">
+                  · 追踪号 {{ message.traceId.slice(-6) }}
                 </template>
               </span>
               <button
@@ -39,11 +47,10 @@
         </div>
       </div>
 
-      <div v-if="progressText" class="message-row is-agent">
+      <div v-if="liveSteps" class="message-row is-agent">
         <div class="message-row__inner">
-          <div class="message-bubble progress">
-            <span class="progress-text">{{ progressText }}</span>
-            <span class="progress-elapsed">{{ elapsed }}</span>
+          <div class="message-bubble">
+            <ProgressTimeline :steps="liveSteps" running />
           </div>
         </div>
       </div>
@@ -52,18 +59,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import type { ChatMessageItem } from './type'
+import type { ChatMessageItem, TurnStep } from './type'
 import { formatDuration, formatFullTime, formatMessageTime } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
+import ProgressTimeline from './ProgressTimeline.vue'
 
-const props = defineProps<{
+defineProps<{
   messages: ChatMessageItem[]
   loading: boolean
-  progressText: string | null
+  /** 本轮执行中的步骤；不在执行时为 null */
+  liveSteps: TurnStep[] | null
 }>()
 
 /** AI 回复统一按 Markdown 渲染：不信任原始 HTML，只认 ``` 代码块 */
@@ -78,32 +87,6 @@ markdown.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
 function renderMarkdown(content: string | null | undefined): string {
   return DOMPurify.sanitize(markdown.render(content ?? ''), { ADD_ATTR: ['target'] })
 }
-
-/** 进度出现即开始计时，消失即停止 */
-const now = ref(Date.now())
-let startedAt = 0
-let ticker: ReturnType<typeof setInterval> | null = null
-
-function stopTicker(): void {
-  if (ticker) clearInterval(ticker)
-  ticker = null
-}
-
-watch(
-  () => props.progressText != null,
-  (active) => {
-    stopTicker()
-    if (!active) return
-    startedAt = Date.now()
-    now.value = startedAt
-    ticker = setInterval(() => (now.value = Date.now()), 1000)
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(stopTicker)
-
-const elapsed = computed(() => formatDuration(now.value - startedAt))
 
 const copiedId = ref<string | null>(null)
 let copiedTimer: ReturnType<typeof setTimeout> | null = null
@@ -182,13 +165,6 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 .message-row.is-agent .message-bubble {
   padding: 2px 0;
   background: transparent;
-}
-
-.message-bubble.progress {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 14px;
 }
 
 /* 时间 · 耗时：AI 回复常驻，用户消息随复制按钮悬停出现 */
@@ -363,43 +339,5 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 .copy-btn:hover {
   background: var(--g2-bg-muted, #f5f5f5);
   color: var(--g2-text-primary);
-}
-
-/* 文字流光：渐变高光从左向右扫过 */
-.progress-text {
-  color: transparent;
-  background: linear-gradient(
-      90deg,
-      var(--g2-text-secondary, #8e8e8e) 0%,
-      var(--g2-text-secondary, #8e8e8e) 40%,
-      var(--g2-text-primary, #1f1f1f) 50%,
-      var(--g2-text-secondary, #8e8e8e) 60%,
-      var(--g2-text-secondary, #8e8e8e) 100%
-    )
-    0 0 / 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: progress-shimmer 2s linear infinite;
-}
-
-.progress-elapsed {
-  color: var(--g2-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-@keyframes progress-shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .progress-text {
-    animation: none;
-    color: var(--g2-text-secondary);
-  }
 }
 </style>

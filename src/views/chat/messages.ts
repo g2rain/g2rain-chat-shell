@@ -1,4 +1,4 @@
-import type { ChatMessageItem, ChatMessageRecord } from './type'
+import type { ChatMessageItem, ChatMessageRecord, TurnStep } from './type'
 
 export function historyToChatItems(rows: ChatMessageRecord[]): ChatMessageItem[] {
   return rows
@@ -15,7 +15,24 @@ export function historyToChatItems(rows: ChatMessageRecord[]): ChatMessageItem[]
       content: row.content ?? '',
       createdAtMs: row.createdAtMs,
       elapsedMs: row.elapsedMs ?? undefined,
+      progress: row.progress?.length ? row.progress : undefined,
+      traceId: row.traceId,
+      failed: isFailed(row.progress),
     }))
+}
+
+/** 顶层步骤有失败即视为本轮失败 */
+export function isFailed(steps?: TurnStep[]): boolean {
+  return !!steps?.some((step) => !step.parentStepId && step.status === 'FAILED')
+}
+
+/** 按 stepId 合并：首次出现追加，再次出现更新同一项 */
+export function mergeStep(steps: TurnStep[], step: TurnStep): TurnStep[] {
+  const index = steps.findIndex((item) => item.stepId === step.stepId)
+  if (index < 0) return [...steps, step]
+  const next = steps.slice()
+  next[index] = step
+  return next
 }
 
 const pad = (value: number): string => String(value).padStart(2, '0')
