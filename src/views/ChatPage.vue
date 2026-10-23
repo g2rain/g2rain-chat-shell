@@ -7,6 +7,7 @@
       :loading="loadingConversations"
       :streaming="streaming"
       :collapsed="sidebarCollapsed"
+      :typing-id="typingId"
       @new-chat="startNewChat"
       @select="selectConversation"
       @delete="deleteConversation"
@@ -42,6 +43,7 @@ import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
 import { ChatApi } from './chat/api'
 import { historyToChatItems, mergeStep } from './chat/messages'
+import { useDocumentTitle } from './chat/document-title'
 import type {
   AgentProfileItem,
   ChatConversation,
@@ -49,6 +51,7 @@ import type {
   ModelProfileItem,
   PendingTurnActions,
   ResumeAction,
+  TurnEvent,
   TurnRequest,
   TurnStep,
 } from './chat/type'
@@ -65,6 +68,14 @@ const sidebarCollapsed = ref(false)
 const activeNavKey = ref<string | null>(null)
 const conversations = ref<ChatConversation[]>([])
 const activeConversationId = ref<string | null>(null)
+/** 刚由 TITLE 事件生成标题的会话：列表标题以打字机效果出现一次 */
+const typingId = ref<string | null>(null)
+
+/** 页面标题跟随当前会话；没有当前会话时还原页面原始标题 */
+const activeTitle = computed(
+  () => conversations.value.find((item) => item.conversationId === activeConversationId.value)?.title,
+)
+const documentTitle = useDocumentTitle(activeTitle)
 const messages = ref<ChatMessageItem[]>([])
 const loadingConversations = ref(false)
 const loadingMessages = ref(false)
@@ -155,22 +166,44 @@ function startNewChat(): void {
   clearTurnUi({ clearError: true })
 }
 
-async function deleteConversation(id: number): Promise<void> {
-  const target = conversations.value.find((item) => item.id === id)
-  if (target?.id == null) {
-    errorMessage.value = '会话缺少主键，无法删除'
-    return
-  }
+async function deleteConversation(conversationId: string): Promise<void> {
   try {
-    await ChatApi.deleteConversation(id)
+    await ChatApi.deleteConversation(conversationId)
   } catch (error) {
     errorMessage.value = toErrorMessage(error, '删除会话失败')
     return
   }
-  conversations.value = conversations.value.filter((item) => item.id !== id)
-  if (activeConversationId.value === target.conversationId) {
+  conversations.value = conversations.value.filter((item) => item.conversationId !== conversationId)
+  if (activeConversationId.value === conversationId) {
     startNewChat()
   }
+}
+
+/** 新会话生成标题：插到列表顶部并以打字机效果展示，页面标题同步；不再拉取会话列表 */
+function applyTitle(event: TurnEvent): void {
+  const conversationId = event.conversationId
+  const title = event.text?.trim()
+  if (!conversationId || !title) return
+  // 先启动页面标题动画，随后的会话切换遇到同一标题不会打断它
+  documentTitle.play(title)
+  typingId.value = conversationId
+  const existing = conversations.value.find((item) => item.conversationId === conversationId)
+  if (existing) {
+    existing.title = title
+  } else {
+    conversations.value = [{ conversationId, title }, ...conversations.value]
+  }
+  activeConversationId.value = conversationId
+}
+
+/** 本轮结束：当前会话移到列表顶部，代替重新拉取列表 */
+function touchConversation(conversationId: string | null): void {
+  if (!conversationId) return
+  const index = conversations.value.findIndex((item) => item.conversationId === conversationId)
+  if (index <= 0) return
+  const next = conversations.value.slice()
+  const [current] = next.splice(index, 1)
+  conversations.value = [current, ...next]
 }
 
 function appendMessage(role: 'USER' | 'AGENT', content: string, extra?: Partial<ChatMessageItem>): void {
@@ -212,6 +245,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
           activeConversationId.value = event.conversationId
         }
       },
+      applyTitle,
       (event) => {
         const steps = liveSteps.value ?? []
         liveSteps.value = null
@@ -235,7 +269,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
       },
       abortController.signal,
     )
-    void loadConversations()
+    touchConversation(activeConversationId.value)
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return

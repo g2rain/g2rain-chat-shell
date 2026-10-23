@@ -15,6 +15,7 @@
               v-if="message.role !== 'USER' && message.progress?.length"
               :steps="message.progress"
               :elapsed-ms="message.elapsedMs"
+              :trace-id="message.traceId"
             />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
@@ -29,7 +30,15 @@
                   · 耗时 {{ formatDuration(message.elapsedMs) }}
                 </template>
                 <template v-if="message.failed && message.traceId">
-                  · 追踪号 {{ message.traceId.slice(-6) }}
+                  ·
+                  <button
+                    type="button"
+                    class="trace-btn"
+                    :title="copiedTraceId === message.id ? '已复制' : '复制完整追踪号'"
+                    @click="copyTrace(message)"
+                  >
+                    追踪号 {{ message.traceId.slice(-6) }}
+                  </button>
                 </template>
               </span>
               <button
@@ -86,6 +95,20 @@ markdown.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
 
 function renderMarkdown(content: string | null | undefined): string {
   return DOMPurify.sanitize(markdown.render(content ?? ''), { ADD_ATTR: ['target'] })
+}
+
+const copiedTraceId = ref<string | null>(null)
+
+/** 失败回复的追踪号：展示末 6 位，复制完整值 */
+async function copyTrace(message: ChatMessageItem): Promise<void> {
+  if (!message.traceId) return
+  try {
+    await navigator.clipboard.writeText(message.traceId)
+  } catch {
+    return
+  }
+  copiedTraceId.value = message.id
+  setTimeout(() => (copiedTraceId.value = null), 1500)
 }
 
 const copiedId = ref<string | null>(null)
@@ -304,6 +327,21 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 
 .message-row.is-user .message-actions {
   justify-content: flex-end;
+}
+
+.trace-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.trace-btn:hover {
+  color: var(--g2-text-primary);
 }
 
 .copy-btn {

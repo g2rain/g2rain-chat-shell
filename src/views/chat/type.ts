@@ -19,7 +19,7 @@ export interface TurnStep {
 }
 
 export interface TurnEvent {
-  type: 'PROGRESS' | 'RESULT'
+  type: 'PROGRESS' | 'TITLE' | 'RESULT'
   conversationId: string
   traceId?: string
   /** 执行步骤；仅 PROGRESS */

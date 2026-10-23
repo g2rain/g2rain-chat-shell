@@ -89,7 +89,10 @@
                   :disabled="streaming"
                   @click="emit('select', item.conversationId)"
                 >
-                  <span class="conversation-title">{{ item.title || '新对话' }}</span>
+                  <span class="conversation-title">
+                    <TypewriterText v-if="item.conversationId === typingId && item.title" :text="item.title" />
+                    <template v-else>{{ item.title || '新对话' }}</template>
+                  </span>
                 </button>
                 <div class="more-wrap">
                   <button
@@ -122,6 +125,15 @@
       >
         <button
           type="button"
+          class="item-menu__btn"
+          role="menuitem"
+          @click="onCopyId"
+        >
+          <CopyIcon />
+          <span>复制会话 ID</span>
+        </button>
+        <button
+          type="button"
           class="item-menu__btn danger"
           role="menuitem"
           @click="onDelete"
@@ -136,16 +148,18 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import logoHeader from '@/assets/brand/logo-header.png'
 import SidebarAccount from '../../shell/layout/SidebarAccount.vue'
 import type { ChatConversation } from './type'
 import ChevronIcon from './icons/ChevronIcon.vue'
 import ComposeIcon from './icons/ComposeIcon.vue'
+import CopyIcon from './icons/CopyIcon.vue'
 import EmptyHistoryIcon from './icons/EmptyHistoryIcon.vue'
 import MoreIcon from './icons/MoreIcon.vue'
 import SidebarIcon from './icons/SidebarIcon.vue'
 import TrashIcon from './icons/TrashIcon.vue'
+import TypewriterText from './TypewriterText.vue'
 
 const props = defineProps<{
   conversations: ChatConversation[]
@@ -154,12 +168,14 @@ const props = defineProps<{
   loading: boolean
   streaming: boolean
   collapsed?: boolean
+  /** 刚生成标题的会话：标题以打字机效果出现一次 */
+  typingId?: string | null
 }>()
 
 const emit = defineEmits<{
   newChat: []
   select: [conversationId: string]
-  delete: [id: number]
+  delete: [conversationId: string]
   collapse: []
   expand: []
 }>()
@@ -188,11 +204,24 @@ function toggleMenu(conversationId: string, event: MouseEvent): void {
   }
 }
 
+/** 复制完整会话 ID，便于在会话观测中定位 */
+async function onCopyId(): Promise<void> {
+  const conversationId = openMenuId.value
+  closeMenu()
+  if (!conversationId) return
+  try {
+    await navigator.clipboard.writeText(conversationId)
+    ElMessage.success('已复制会话 ID')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
 async function onDelete(): Promise<void> {
   const conversationId = openMenuId.value
   const item = props.conversations.find((row) => row.conversationId === conversationId)
   closeMenu()
-  if (item?.id == null) return
+  if (!item) return
 
   const title = item.title?.trim() || '新对话'
   try {
@@ -205,7 +234,7 @@ async function onDelete(): Promise<void> {
   } catch {
     return
   }
-  emit('delete', item.id)
+  emit('delete', item.conversationId)
 }
 
 function onDocumentClick(): void {

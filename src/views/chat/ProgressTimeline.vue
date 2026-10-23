@@ -26,6 +26,13 @@
           {{ formatDuration(row.step.elapsedMs) }}
         </span>
       </li>
+      <li v-if="traceId" class="timeline__trace">
+        <button type="button" class="timeline__copy" title="复制追踪号" @click="copyTrace">
+          追踪号 {{ traceId }}
+          <CheckIcon v-if="copied" />
+          <CopyIcon v-else />
+        </button>
+      </li>
     </ul>
   </div>
 </template>
@@ -34,6 +41,8 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { TurnStep } from './type'
 import { formatDuration, isFailed } from './messages'
+import CheckIcon from './icons/CheckIcon.vue'
+import CopyIcon from './icons/CopyIcon.vue'
 
 const props = defineProps<{
   steps: TurnStep[]
@@ -41,7 +50,22 @@ const props = defineProps<{
   running?: boolean
   /** 本轮总耗时；结束后展示 */
   elapsedMs?: number
+  /** 本轮追踪号；展开后底部展示，可复制完整值 */
+  traceId?: string
 }>()
+
+const copied = ref(false)
+
+async function copyTrace(): Promise<void> {
+  if (!props.traceId) return
+  try {
+    await navigator.clipboard.writeText(props.traceId)
+  } catch {
+    return
+  }
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1500)
+}
 
 const expanded = ref(false)
 const failed = computed(() => isFailed(props.steps))
@@ -186,6 +210,33 @@ function iconOf(step: TurnStep): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.timeline__trace {
+  margin-top: 6px;
+}
+
+.timeline__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--g2-text-secondary, #8e8e8e);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.timeline__copy:hover {
+  color: var(--g2-text-primary, #1f1f1f);
+}
+
+.timeline__copy :deep(svg) {
+  width: 14px;
+  height: 14px;
 }
 
 /* 执行中标题流光：渐变高光从左向右扫过 */
