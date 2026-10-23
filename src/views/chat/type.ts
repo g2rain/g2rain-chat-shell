@@ -26,10 +26,11 @@ export interface AgentProfileItem {
   agentName: string
 }
 
-/** 对应 model `/model_service_profile/options`；下拉 value/展示用 modelName */
+/** 对应 model `/model_service_profile/options`；下拉 value 用 modelName，展示用 displayName */
 export interface ModelProfileItem {
   id?: number
   modelName: string
+  displayName: string
 }
 
 export interface ChatConversation {

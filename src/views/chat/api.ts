@@ -106,7 +106,7 @@ export class ChatApi {
     return (res.data ?? []).filter((item) => item.id != null && item.agentName)
   }
 
-  /** g2rain-model-nexus：ACTIVE 模型下拉（选项 value/展示均用 modelName） */
+  /** g2rain-model-nexus：ACTIVE 模型下拉（value 用 modelName，展示用 displayName） */
   static async listModels(): Promise<ModelProfileItem[]> {
     const http = getHttpClient()
     const res = await http.client.get<ModelProfileItem[]>('/model/model_service_profile/options')

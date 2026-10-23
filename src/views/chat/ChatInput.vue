@@ -76,7 +76,7 @@
                   :key="item.modelName"
                   :value="item.modelName"
                 >
-                  {{ item.modelName }}
+                  {{ item.displayName }}
                 </option>
               </select>
             </label>
@@ -92,6 +92,7 @@
           </button>
         </div>
       </div>
+      <p class="disclaimer">G2rain Chat 由 AI 生成内容，可能不准确。重要信息请核实后再使用。</p>
     </div>
   </div>
 </template>
@@ -179,13 +180,13 @@ function isTouchDevice(): boolean {
 /**
  * 回车发送；以下情况保留默认行为（上屏或换行），不发送：
  * <ul>
- *   <li>输入法组合中：isComposing（Chrome / Firefox），keyCode 229（Safari 确认上屏时 isComposing 已为 false），以及组合事件兜底</li>
+ *   <li>输入法组合中：isComposing（Chrome / Firefox），key 为 Process，以及组合事件兜底（Safari 确认上屏时 isComposing 已为 false）</li>
  *   <li>带修饰键：Shift / Option(Alt) + Enter 换行，Ctrl / Cmd + Enter 不做处理</li>
  *   <li>触屏设备</li>
  * </ul>
  */
 function onEnter(event: KeyboardEvent): void {
-  if (event.isComposing || event.keyCode === 229 || composing.value) return
+  if (event.isComposing || event.key === 'Process' || composing.value) return
   if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return
   if (isTouchDevice()) return
   event.preventDefault()
@@ -209,7 +210,7 @@ watch(draft, () => {
 .chat-input {
   position: relative;
   flex-shrink: 0;
-  padding: 0 16px 28px;
+  padding: 0 16px;
   background: transparent;
 }
 
@@ -235,6 +236,17 @@ watch(draft, () => {
 .chat-input__inner {
   width: min(100%, 768px);
   margin: 0 auto;
+}
+
+/* 占据输入框下方原 28px 留白，叠在半透明层之上 */
+.disclaimer {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-size: 12px;
+  line-height: 28px;
+  text-align: center;
+  color: var(--g2-text-secondary, #8e8e8e);
 }
 
 .action-bar {
