@@ -222,7 +222,7 @@ watch(draft, () => {
   left: 50%;
   z-index: 1;
   width: min(calc(100% - 32px), 768px);
-  height: 28px;
+  height: 36px;
   transform: translateX(-50%);
   pointer-events: none;
   background: color-mix(in srgb, var(--g2-bg-container, #fff) 55%, transparent);
@@ -238,13 +238,14 @@ watch(draft, () => {
   margin: 0 auto;
 }
 
-/* 占据输入框下方原 28px 留白，叠在半透明层之上 */
+/* 输入框下方提示：上 8px、下 10px 留白，叠在半透明层之上 */
 .disclaimer {
   position: relative;
   z-index: 2;
   margin: 0;
+  padding: 8px 0 10px;
   font-size: 12px;
-  line-height: 28px;
+  line-height: 18px;
   text-align: center;
   color: var(--g2-text-secondary, #8e8e8e);
 }
