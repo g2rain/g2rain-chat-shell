@@ -11,12 +11,19 @@
       >
         <div class="message-row__inner">
           <div class="message-bubble">
-            <div v-if="message.elapsedMs != null" class="message-elapsed">
-              已执行 {{ formatDuration(message.elapsedMs) }}
-            </div>
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
             <div class="message-actions">
+              <span
+                v-if="message.createdAtMs"
+                class="message-meta"
+                :title="formatFullTime(message.createdAtMs)"
+              >
+                {{ formatMessageTime(message.createdAtMs) }}
+                <template v-if="message.role !== 'USER' && message.elapsedMs != null">
+                  · 耗时 {{ formatDuration(message.elapsedMs) }}
+                </template>
+              </span>
               <button
                 type="button"
                 class="copy-btn"
@@ -49,7 +56,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import type { ChatMessageItem } from './type'
-import { formatDuration } from './messages'
+import { formatDuration, formatFullTime, formatMessageTime } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
 
@@ -184,9 +191,13 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   font-size: 14px;
 }
 
-.message-elapsed {
-  font-size: 13px;
-  color: var(--g2-text-secondary);
+/* 时间 · 耗时：AI 回复常驻，用户消息随复制按钮悬停出现 */
+.message-meta {
+  margin: 0 4px;
+  font-size: 12px;
+  color: var(--g2-text-secondary, #8e8e8e);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .message-text {
@@ -334,12 +345,15 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 }
 
 /* 用户消息：默认隐藏，滑过整行（含图标高度）才显示 */
+.message-row.is-user .message-meta,
 .message-row.is-user .copy-btn {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease;
 }
 
+.message-row.is-user:hover .message-meta,
+.message-row.is-user:focus-within .message-meta,
 .message-row.is-user:hover .copy-btn,
 .message-row.is-user:focus-within .copy-btn {
   opacity: 1;

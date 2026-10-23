@@ -8,6 +8,10 @@ export interface TurnEvent {
   status?: TurnStatus
   actions?: ResumeAction[]
   suggestions?: string[]
+  /** 最终回复的发言时间 epoch ms，与入库一致；仅 RESULT */
+  createdAtMs?: number
+  /** 本轮耗时毫秒，与入库一致；仅 RESULT */
+  elapsedMs?: number
 }
 
 export interface TurnRequest {
@@ -49,6 +53,8 @@ export interface ChatMessageRecord {
   nodeId?: string
   content?: string
   createdAtMs?: number
+  /** 本轮耗时毫秒；仅最终回复 */
+  elapsedMs?: number
 }
 
 export interface ChatMessageItem {
@@ -56,7 +62,7 @@ export interface ChatMessageItem {
   role: 'USER' | 'AGENT'
   content: string
   createdAtMs?: number
-  /** 本轮执行耗时，仅当前会话内实时回合有值 */
+  /** 本轮执行耗时；仅 AGENT 最终回复，旧消息为空 */
   elapsedMs?: number
 }
 

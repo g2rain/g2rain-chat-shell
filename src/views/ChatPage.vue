@@ -171,12 +171,12 @@ async function deleteConversation(id: number): Promise<void> {
   }
 }
 
-function appendMessage(role: 'USER' | 'AGENT', content: string, elapsedMs?: number): void {
+function appendMessage(role: 'USER' | 'AGENT', content: string, createdAtMs?: number, elapsedMs?: number): void {
   messages.value.push({
     id: Generator.random(),
     role,
     content,
-    createdAtMs: Date.now(),
+    createdAtMs: createdAtMs ?? Date.now(),
     elapsedMs,
   })
 }
@@ -216,7 +216,8 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
           activeConversationId.value = event.conversationId
         }
         if (event.text) {
-          appendMessage('AGENT', event.text, Date.now() - startedAt)
+          // 优先服务端时间与耗时（与入库一致），缺失时用本地兜底
+          appendMessage('AGENT', event.text, event.createdAtMs, event.elapsedMs ?? Date.now() - startedAt)
         }
         pendingActions.value =
           event.status === 'WAITING' && event.actions?.length
