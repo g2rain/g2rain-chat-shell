@@ -1,4 +1,4 @@
-import type { ChatMessageItem, ChatMessageRecord } from './type'
+import type { ChatMessageItem, ChatMessageRecord, TurnStep } from './type'
 
 export function historyToChatItems(rows: ChatMessageRecord[]): ChatMessageItem[] {
   return rows
@@ -14,7 +14,44 @@ export function historyToChatItems(rows: ChatMessageRecord[]): ChatMessageItem[]
       role: row.role as 'USER' | 'AGENT',
       content: row.content ?? '',
       createdAtMs: row.createdAtMs,
+      elapsedMs: row.elapsedMs ?? undefined,
+      progress: row.progress?.length ? row.progress : undefined,
+      traceId: row.traceId,
+      failed: isFailed(row.progress),
     }))
+}
+
+/** 顶层步骤有失败即视为本轮失败 */
+export function isFailed(steps?: TurnStep[]): boolean {
+  return !!steps?.some((step) => !step.parentStepId && step.status === 'FAILED')
+}
+
+/** 按 stepId 合并：首次出现追加，再次出现更新同一项 */
+export function mergeStep(steps: TurnStep[], step: TurnStep): TurnStep[] {
+  const index = steps.findIndex((item) => item.stepId === step.stepId)
+  if (index < 0) return [...steps, step]
+  const next = steps.slice()
+  next[index] = step
+  return next
+}
+
+const pad = (value: number): string => String(value).padStart(2, '0')
+
+/** 按远近缩写：今天 HH:mm，今年 MM-DD HH:mm，跨年 YYYY-MM-DD HH:mm */
+export function formatMessageTime(ms: number): string {
+  const date = new Date(ms)
+  const now = new Date()
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  if (date.toDateString() === now.toDateString()) return time
+  const day = `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${time}`
+  return date.getFullYear() === now.getFullYear() ? day : `${date.getFullYear()}-${day}`
+}
+
+/** 悬停展示的完整时间：YYYY-MM-DD HH:mm:ss */
+export function formatFullTime(ms: number): string {
+  const date = new Date(ms)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 /** 12s / 1m 05s */

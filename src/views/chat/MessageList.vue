@@ -11,12 +11,36 @@
       >
         <div class="message-row__inner">
           <div class="message-bubble">
-            <div v-if="message.elapsedMs != null" class="message-elapsed">
-              已执行 {{ formatDuration(message.elapsedMs) }}
-            </div>
+            <ProgressTimeline
+              v-if="message.role !== 'USER' && message.progress?.length"
+              :steps="message.progress"
+              :elapsed-ms="message.elapsedMs"
+              :trace-id="message.traceId"
+            />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
             <div class="message-actions">
+              <span
+                v-if="message.createdAtMs"
+                class="message-meta"
+                :title="formatFullTime(message.createdAtMs)"
+              >
+                {{ formatMessageTime(message.createdAtMs) }}
+                <template v-if="message.role !== 'USER' && message.elapsedMs != null">
+                  · 耗时 {{ formatDuration(message.elapsedMs) }}
+                </template>
+                <template v-if="message.failed && message.traceId">
+                  ·
+                  <button
+                    type="button"
+                    class="trace-btn"
+                    :title="copiedTraceId === message.id ? '已复制' : '复制完整追踪号'"
+                    @click="copyTrace(message)"
+                  >
+                    追踪号 {{ message.traceId.slice(-6) }}
+                  </button>
+                </template>
+              </span>
               <button
                 type="button"
                 class="copy-btn"
@@ -32,11 +56,10 @@
         </div>
       </div>
 
-      <div v-if="progressText" class="message-row is-agent">
+      <div v-if="liveSteps" class="message-row is-agent">
         <div class="message-row__inner">
-          <div class="message-bubble progress">
-            <span class="progress-text">{{ progressText }}</span>
-            <span class="progress-elapsed">{{ elapsed }}</span>
+          <div class="message-bubble">
+            <ProgressTimeline :steps="liveSteps" running />
           </div>
         </div>
       </div>
@@ -45,18 +68,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import type { ChatMessageItem } from './type'
-import { formatDuration } from './messages'
+import type { ChatMessageItem, TurnStep } from './type'
+import { formatDuration, formatFullTime, formatMessageTime } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
+import ProgressTimeline from './ProgressTimeline.vue'
 
-const props = defineProps<{
+defineProps<{
   messages: ChatMessageItem[]
   loading: boolean
-  progressText: string | null
+  /** 本轮执行中的步骤；不在执行时为 null */
+  liveSteps: TurnStep[] | null
 }>()
 
 /** AI 回复统一按 Markdown 渲染：不信任原始 HTML，只认 ``` 代码块 */
@@ -72,31 +97,19 @@ function renderMarkdown(content: string | null | undefined): string {
   return DOMPurify.sanitize(markdown.render(content ?? ''), { ADD_ATTR: ['target'] })
 }
 
-/** 进度出现即开始计时，消失即停止 */
-const now = ref(Date.now())
-let startedAt = 0
-let ticker: ReturnType<typeof setInterval> | null = null
+const copiedTraceId = ref<string | null>(null)
 
-function stopTicker(): void {
-  if (ticker) clearInterval(ticker)
-  ticker = null
+/** 失败回复的追踪号：展示末 6 位，复制完整值 */
+async function copyTrace(message: ChatMessageItem): Promise<void> {
+  if (!message.traceId) return
+  try {
+    await navigator.clipboard.writeText(message.traceId)
+  } catch {
+    return
+  }
+  copiedTraceId.value = message.id
+  setTimeout(() => (copiedTraceId.value = null), 1500)
 }
-
-watch(
-  () => props.progressText != null,
-  (active) => {
-    stopTicker()
-    if (!active) return
-    startedAt = Date.now()
-    now.value = startedAt
-    ticker = setInterval(() => (now.value = Date.now()), 1000)
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(stopTicker)
-
-const elapsed = computed(() => formatDuration(now.value - startedAt))
 
 const copiedId = ref<string | null>(null)
 let copiedTimer: ReturnType<typeof setTimeout> | null = null
@@ -177,16 +190,13 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   background: transparent;
 }
 
-.message-bubble.progress {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.message-elapsed {
-  font-size: 13px;
-  color: var(--g2-text-secondary);
+/* 时间 · 耗时：AI 回复常驻，用户消息随复制按钮悬停出现 */
+.message-meta {
+  margin: 0 4px;
+  font-size: 12px;
+  color: var(--g2-text-secondary, #8e8e8e);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .message-text {
@@ -319,6 +329,21 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   justify-content: flex-end;
 }
 
+.trace-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.trace-btn:hover {
+  color: var(--g2-text-primary);
+}
+
 .copy-btn {
   display: inline-flex;
   align-items: center;
@@ -334,12 +359,15 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
 }
 
 /* 用户消息：默认隐藏，滑过整行（含图标高度）才显示 */
+.message-row.is-user .message-meta,
 .message-row.is-user .copy-btn {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease;
 }
 
+.message-row.is-user:hover .message-meta,
+.message-row.is-user:focus-within .message-meta,
 .message-row.is-user:hover .copy-btn,
 .message-row.is-user:focus-within .copy-btn {
   opacity: 1;
@@ -351,41 +379,34 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   color: var(--g2-text-primary);
 }
 
-/* 文字流光：渐变高光从左向右扫过 */
-.progress-text {
-  color: transparent;
-  background: linear-gradient(
-      90deg,
-      var(--g2-text-secondary, #8e8e8e) 0%,
-      var(--g2-text-secondary, #8e8e8e) 40%,
-      var(--g2-text-primary, #1f1f1f) 50%,
-      var(--g2-text-secondary, #8e8e8e) 60%,
-      var(--g2-text-secondary, #8e8e8e) 100%
-    )
-    0 0 / 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: progress-shimmer 2s linear infinite;
-}
-
-.progress-elapsed {
-  color: var(--g2-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-@keyframes progress-shimmer {
-  from {
-    background-position: 100% 0;
+/* 触屏没有悬停：用户消息的时间与复制按钮常显 */
+@media (hover: none) {
+  .message-row.is-user .message-meta,
+  .message-row.is-user .copy-btn {
+    opacity: 1;
+    pointer-events: auto;
   }
-  to {
-    background-position: 0 0;
+
+  .copy-btn {
+    width: 36px;
+    height: 36px;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .progress-text {
-    animation: none;
-    color: var(--g2-text-secondary);
+/* 手机：边距收窄，用户气泡最宽 85% */
+@media (max-width: 767px) {
+  .message-row {
+    padding: 0 12px;
+    margin-bottom: 18px;
+  }
+
+  .message-row.is-user .message-bubble {
+    max-width: 85%;
+  }
+
+  .message-row.is-user .message-text {
+    padding: 9px 14px;
+    border-radius: 18px;
   }
 }
 </style>
