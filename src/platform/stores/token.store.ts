@@ -19,6 +19,8 @@ export interface AccessTokenClaims {
   refreshExpireAt: number
   adminCompany: boolean
   organId?: number
+  /** 当前用户 ID（员工会话）；切换身份时标记当前项 */
+  userId?: string
   /** USER / PASSPORT / MEMBER / ANONYMOUS */
   sessionType?: string
   /** 展示用：姓名（访客为"访客"）、机构名称、是否机构管理员 */
@@ -69,12 +71,14 @@ function belongsToCurrentShell(state: PersistedTokenState): boolean {
 }
 
 /**
- * 旧版本持久化的 claims 没有展示字段（姓名、机构名称等）：从当初已验签保存的 tokenString 补齐，
+ * 旧版本持久化的 claims 没有展示字段（姓名、机构名称、用户 ID 等）：从当初已验签保存的 tokenString 补齐，
  * 只补展示与会话类型，不参与鉴权判断。
  */
 function withDisplayClaims(state: PersistedTokenState | null): PersistedTokenState | null {
   const claims = state?.token
-  if (!claims || !state.tokenString || (claims.sessionType && claims.organName !== undefined)) {
+  const complete = claims?.sessionType && claims.organName !== undefined
+    && (claims.userId !== undefined || claims.sessionType !== 'USER')
+  if (!claims || !state.tokenString || complete) {
     return state
   }
   try {
@@ -83,6 +87,7 @@ function withDisplayClaims(state: PersistedTokenState | null): PersistedTokenSta
     claims.name ??= (payload.name as string) || undefined
     claims.organName ??= (payload.organName as string) || undefined
     claims.adminUser ??= payload.adminUser === true
+    claims.userId ??= payload.userId != null && payload.userId !== '' ? String(payload.userId) : undefined
   } catch {
     /* 解析失败保持原样，下次换票或刷新时会写入完整 claims */
   }
@@ -206,6 +211,7 @@ export const useAccessTokenStore = defineStore('shell-access-token', () => {
       adminCompany: payload.adminCompany === true,
       organId:
         parsedOrganId != null && !Number.isNaN(parsedOrganId) ? parsedOrganId : undefined,
+      userId: payload.userId != null && payload.userId !== '' ? String(payload.userId) : undefined,
       sessionType: (payload.sessionType as string) || undefined,
       name: (payload.name as string) || undefined,
       organName: (payload.organName as string) || undefined,
