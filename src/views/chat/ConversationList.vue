@@ -1,5 +1,9 @@
 <template>
-  <aside class="conversation-list" :class="{ collapsed }">
+  <aside
+    class="conversation-list"
+    :class="{ collapsed, 'is-drawer': drawer, 'is-open': drawer && open }"
+    :aria-hidden="drawer && !open"
+  >
     <template v-if="collapsed">
       <div class="rail">
         <button
@@ -170,6 +174,10 @@ const props = defineProps<{
   collapsed?: boolean
   /** 刚生成标题的会话：标题以打字机效果出现一次 */
   typingId?: string | null
+  /** 紧凑布局：以抽屉形式从左侧滑出 */
+  drawer?: boolean
+  /** 抽屉是否打开；仅 drawer 时有效 */
+  open?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -268,6 +276,61 @@ onBeforeUnmount(() => {
 .conversation-list.collapsed {
   width: 52px;
   background: var(--g2-bg-container, #fff);
+}
+
+/* 抽屉：固定在左侧，只用 transform 做动画，不触发重排 */
+.conversation-list.is-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  width: min(300px, 85vw);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+  border-right: none;
+  box-shadow: 0 0 24px rgb(0 0 0 / 12%);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.26s;
+  will-change: transform;
+}
+
+.conversation-list.is-drawer.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-list.is-drawer,
+  .conversation-list.is-drawer.is-open {
+    transition: none;
+  }
+}
+
+/* 触屏：没有悬停，更多按钮常显，点击区域加大 */
+@media (hover: none) {
+  .more-btn {
+    width: 36px;
+    height: 36px;
+    opacity: 1;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .conversation-main {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }
 
 .rail {

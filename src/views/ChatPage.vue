@@ -1,20 +1,42 @@
 <template>
-  <div class="chat-page">
+  <div class="chat-page" :class="{ 'is-compact': compact }">
     <ConversationList
       :conversations="conversations"
       :active-conversation-id="activeConversationId"
       :active-nav-key="activeNavKey"
       :loading="loadingConversations"
       :streaming="streaming"
-      :collapsed="sidebarCollapsed"
+      :collapsed="!compact && sidebarCollapsed"
+      :drawer="compact"
+      :open="drawerOpen"
       :typing-id="typingId"
       @new-chat="startNewChat"
       @select="selectConversation"
       @delete="deleteConversation"
-      @collapse="sidebarCollapsed = true"
+      @collapse="compact ? (drawerOpen = false) : (sidebarCollapsed = true)"
       @expand="sidebarCollapsed = false"
     />
+    <Transition name="mask">
+      <div v-if="compact && drawerOpen" class="drawer-mask" aria-hidden="true" @click="drawerOpen = false" />
+    </Transition>
     <div class="chat-main">
+      <!-- 紧凑布局（手机、平板竖屏）：侧栏收进抽屉，顶栏提供入口 -->
+      <header v-if="compact" class="mobile-bar">
+        <button type="button" class="bar-btn" title="打开侧栏" aria-label="打开侧栏" @click="drawerOpen = true">
+          <SidebarIcon />
+        </button>
+        <span class="bar-title">{{ activeTitle || baseTitle }}</span>
+        <button
+          type="button"
+          class="bar-btn"
+          :disabled="streaming"
+          title="新对话"
+          aria-label="新对话"
+          @click="startNewChat"
+        >
+          <ComposeIcon />
+        </button>
+      </header>
       <ChatPanel
         :messages="messages"
         :loading-messages="loadingMessages"
@@ -37,13 +59,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
 import { ChatApi } from './chat/api'
 import { historyToChatItems, mergeStep } from './chat/messages'
-import { useDocumentTitle } from './chat/document-title'
+import { baseTitle, useDocumentTitle } from './chat/document-title'
+import { useCompact } from './chat/viewport'
+import ComposeIcon from './chat/icons/ComposeIcon.vue'
+import SidebarIcon from './chat/icons/SidebarIcon.vue'
 import type {
   AgentProfileItem,
   ChatConversation,
@@ -64,6 +89,10 @@ const { user } = storeToRefs(sessionStore)
 const greetingName = computed(() => user.value?.displayName ?? null)
 
 const sidebarCollapsed = ref(false)
+/** 紧凑布局下侧栏抽屉是否打开；转回宽屏时自动收起 */
+const compact = useCompact()
+const drawerOpen = ref(false)
+watch(compact, () => (drawerOpen.value = false))
 /** 上半区导航激活项；仅点击后设置，默认无底色 */
 const activeNavKey = ref<string | null>(null)
 const conversations = ref<ChatConversation[]>([])
@@ -138,6 +167,7 @@ async function loadComposerOptions(): Promise<void> {
 
 async function selectConversation(conversationId: string): Promise<void> {
   if (streaming.value) return
+  drawerOpen.value = false
   activeNavKey.value = null
   activeConversationId.value = conversationId
   clearTurnUi()
@@ -160,6 +190,7 @@ async function loadMessages(conversationId: string): Promise<void> {
 
 function startNewChat(): void {
   if (streaming.value) return
+  drawerOpen.value = false
   activeNavKey.value = 'new'
   activeConversationId.value = null
   messages.value = []
@@ -336,5 +367,76 @@ onMounted(() => {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.chat-page.is-compact {
+  position: relative;
+}
+
+.mobile-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 48px;
+  padding: env(safe-area-inset-top) 6px 0;
+  box-sizing: content-box;
+  border-bottom: 1px solid var(--g2-border-color-light, #ececec);
+  background: var(--g2-bg-container, #fff);
+}
+
+.bar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--g2-text-primary);
+  font-size: 15px;
+  font-weight: 560;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--g2-text-primary);
+  cursor: pointer;
+}
+
+.bar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgb(0 0 0 / 32%);
+}
+
+.mask-enter-active,
+.mask-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.mask-enter-from,
+.mask-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mask-enter-active,
+  .mask-leave-active {
+    transition: none;
+  }
 }
 </style>

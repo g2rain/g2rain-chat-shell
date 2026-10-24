@@ -17,7 +17,7 @@
         :key="row.step.stepId"
         class="timeline__row"
         :class="`is-${row.step.status.toLowerCase()}`"
-        :style="{ paddingLeft: `${row.depth * 16}px` }"
+        :style="{ '--depth': row.depth }"
       >
         <span class="timeline__icon" aria-hidden="true">{{ iconOf(row.step) }}</span>
         <span class="timeline__step">{{ row.step.title }}</span>
@@ -177,9 +177,11 @@ function iconOf(step: TurnStep): string {
 }
 
 .timeline__row {
+  --indent: 16px;
   display: flex;
   align-items: baseline;
   gap: 8px;
+  padding-left: calc(var(--depth, 0) * var(--indent));
   line-height: 1.8;
 }
 
@@ -269,6 +271,23 @@ function iconOf(step: TurnStep): string {
   .shimmer {
     animation: none;
     color: var(--g2-text-secondary, #8e8e8e);
+  }
+}
+
+/* 手机：缩进收窄，说明换行展示不截断 */
+@media (max-width: 767px) {
+  .timeline__row {
+    --indent: 12px;
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  /* 说明排到耗时之后，耗时留在标题行 */
+  .timeline__detail {
+    order: 1;
+    flex-basis: 100%;
+    padding-left: 20px;
+    white-space: normal;
   }
 }
 </style>

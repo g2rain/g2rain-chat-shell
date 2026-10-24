@@ -258,4 +258,27 @@ watch(
   cursor: pointer;
   font-size: 12px;
 }
+
+/* 触屏没有常驻滚动条，底条不用让出轨道 */
+@media (hover: none) {
+  .composer-dock {
+    right: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .empty-state {
+    gap: 20px;
+    padding: 16px 12px 32px;
+  }
+
+  .empty-greeting {
+    font-size: 22px;
+  }
+
+  .chat-error {
+    right: 12px;
+    left: 12px;
+  }
+}
 </style>

@@ -378,4 +378,35 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   background: var(--g2-bg-muted, #f5f5f5);
   color: var(--g2-text-primary);
 }
+
+/* 触屏没有悬停：用户消息的时间与复制按钮常显 */
+@media (hover: none) {
+  .message-row.is-user .message-meta,
+  .message-row.is-user .copy-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .copy-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* 手机：边距收窄，用户气泡最宽 85% */
+@media (max-width: 767px) {
+  .message-row {
+    padding: 0 12px;
+    margin-bottom: 18px;
+  }
+
+  .message-row.is-user .message-bubble {
+    max-width: 85%;
+  }
+
+  .message-row.is-user .message-text {
+    padding: 9px 14px;
+    border-radius: 18px;
+  }
+}
 </style>

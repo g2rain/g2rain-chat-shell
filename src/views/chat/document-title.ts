@@ -1,7 +1,7 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 
 /** 页面原始标题（index.html 的 <title>），模块加载时读取一次，不在业务代码里写死 */
-const baseTitle = document.title
+export const baseTitle = document.title
 
 /** 打字机效果的逐字间隔（毫秒） */
 const TYPE_INTERVAL = 60

@@ -214,20 +214,6 @@ watch(draft, () => {
   background: transparent;
 }
 
-/* 仅输入框底 → 面板底：半透明层；宽度跟输入区内宽，不盖滚动条 */
-.chat-input:not(.is-empty)::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  z-index: 1;
-  width: min(calc(100% - 32px), 768px);
-  height: 36px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  background: color-mix(in srgb, var(--g2-bg-container, #fff) 55%, transparent);
-}
-
 .chat-input.is-empty {
   width: 100%;
   padding: 0;
@@ -248,6 +234,11 @@ watch(draft, () => {
   line-height: 18px;
   text-align: center;
   color: var(--g2-text-secondary, #8e8e8e);
+}
+
+/* 输入框底 → 面板底：半透明层随提示高度伸缩（手机换行、安全区都能盖住） */
+.chat-input:not(.is-empty) .disclaimer {
+  background: color-mix(in srgb, var(--g2-bg-container, #fff) 55%, transparent);
 }
 
 .action-bar {
@@ -406,5 +397,45 @@ watch(draft, () => {
 
 .composer__send:not(:disabled):hover {
   filter: brightness(1.05);
+}
+
+/* 底部手势条、Home 指示条让出安全区 */
+.disclaimer {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+/* 手机：边距收窄，两个下拉均分一行 */
+@media (max-width: 767px) {
+  .chat-input {
+    padding: 0 12px;
+  }
+
+  /* 390 宽也能一行放下 */
+  .disclaimer {
+    font-size: 11px;
+  }
+
+  .composer__tools {
+    flex: 1;
+    flex-wrap: nowrap;
+  }
+
+  .composer-select {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .composer-select__native {
+    min-width: 0;
+  }
+}
+
+/* 触屏：发送按钮点击区域加大 */
+@media (hover: none) {
+  .composer__send {
+    width: 40px;
+    height: 40px;
+  }
 }
 </style>

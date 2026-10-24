@@ -29,8 +29,18 @@ const isBareAuthRoute = computed(
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* 动态视口高度：手机地址栏伸缩、键盘弹出时页面不跳动 */
+  height: 100dvh;
   overflow: hidden;
   background: var(--g2-bg-container);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 手机上页脚让出空间给对话 */
+@media (max-width: 767px) {
+  .app-container :deep(.shell-footer) {
+    display: none;
+  }
 }
 
 .app-main {
