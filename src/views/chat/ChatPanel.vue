@@ -24,7 +24,7 @@
         <MessageList
           :messages="messages"
           :loading="loadingMessages"
-          :progress-text="progressText"
+          :live-steps="liveSteps"
         />
         <div class="scroll-spacer" aria-hidden="true" />
       </div>
@@ -60,6 +60,7 @@ import type {
   ModelProfileItem,
   PendingTurnActions,
   ResumeAction,
+  TurnStep,
 } from './type'
 import ChatInput from './ChatInput.vue'
 import MessageList from './MessageList.vue'
@@ -68,7 +69,8 @@ import ScrollDownIcon from './icons/ScrollDownIcon.vue'
 const props = defineProps<{
   messages: ChatMessageItem[]
   loadingMessages: boolean
-  progressText: string | null
+  /** 本轮执行中的步骤；不在执行时为 null */
+  liveSteps: TurnStep[] | null
   pendingActions: PendingTurnActions | null
   streaming: boolean
   errorMessage: string | null
@@ -91,7 +93,7 @@ const scrollRef = ref<HTMLElement | null>(null)
 const showJumpBottom = ref(false)
 
 const isEmpty = computed(
-  () => !props.loadingMessages && props.messages.length === 0 && !props.progressText,
+  () => !props.loadingMessages && props.messages.length === 0 && !props.liveSteps,
 )
 
 const greetingSuffix = computed(() => {
@@ -129,11 +131,11 @@ async function scrollToBottom(): Promise<void> {
 }
 
 watch(
-  () => [props.messages.length, props.progressText, props.loadingMessages, isEmpty.value] as const,
+  () => [props.messages.length, props.liveSteps?.length, props.loadingMessages, isEmpty.value] as const,
   async () => {
     if (isEmpty.value) return
     const el = scrollRef.value
-    if (!el || isNearBottom(el) || props.progressText) {
+    if (!el || isNearBottom(el) || props.liveSteps) {
       await scrollToBottom()
     } else {
       onScroll()
@@ -255,5 +257,28 @@ watch(
   padding: 4px 10px;
   cursor: pointer;
   font-size: 12px;
+}
+
+/* 触屏没有常驻滚动条，底条不用让出轨道 */
+@media (hover: none) {
+  .composer-dock {
+    right: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .empty-state {
+    gap: 20px;
+    padding: 16px 12px 32px;
+  }
+
+  .empty-greeting {
+    font-size: 22px;
+  }
+
+  .chat-error {
+    right: 12px;
+    left: 12px;
+  }
 }
 </style>

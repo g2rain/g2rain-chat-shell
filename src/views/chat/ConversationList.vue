@@ -1,5 +1,9 @@
 <template>
-  <aside class="conversation-list" :class="{ collapsed }">
+  <aside
+    class="conversation-list"
+    :class="{ collapsed, 'is-drawer': drawer, 'is-open': drawer && open }"
+    :aria-hidden="drawer && !open"
+  >
     <template v-if="collapsed">
       <div class="rail">
         <button
@@ -89,7 +93,10 @@
                   :disabled="streaming"
                   @click="emit('select', item.conversationId)"
                 >
-                  <span class="conversation-title">{{ item.title || '新对话' }}</span>
+                  <span class="conversation-title">
+                    <TypewriterText v-if="item.conversationId === typingId && item.title" :text="item.title" />
+                    <template v-else>{{ item.title || '新对话' }}</template>
+                  </span>
                 </button>
                 <div class="more-wrap">
                   <button
@@ -122,6 +129,15 @@
       >
         <button
           type="button"
+          class="item-menu__btn"
+          role="menuitem"
+          @click="onCopyId"
+        >
+          <CopyIcon />
+          <span>复制会话 ID</span>
+        </button>
+        <button
+          type="button"
           class="item-menu__btn danger"
           role="menuitem"
           @click="onDelete"
@@ -136,16 +152,18 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import logoHeader from '@/assets/brand/logo-header.png'
 import SidebarAccount from '../../shell/layout/SidebarAccount.vue'
 import type { ChatConversation } from './type'
 import ChevronIcon from './icons/ChevronIcon.vue'
 import ComposeIcon from './icons/ComposeIcon.vue'
+import CopyIcon from './icons/CopyIcon.vue'
 import EmptyHistoryIcon from './icons/EmptyHistoryIcon.vue'
 import MoreIcon from './icons/MoreIcon.vue'
 import SidebarIcon from './icons/SidebarIcon.vue'
 import TrashIcon from './icons/TrashIcon.vue'
+import TypewriterText from './TypewriterText.vue'
 
 const props = defineProps<{
   conversations: ChatConversation[]
@@ -154,12 +172,18 @@ const props = defineProps<{
   loading: boolean
   streaming: boolean
   collapsed?: boolean
+  /** 刚生成标题的会话：标题以打字机效果出现一次 */
+  typingId?: string | null
+  /** 紧凑布局：以抽屉形式从左侧滑出 */
+  drawer?: boolean
+  /** 抽屉是否打开；仅 drawer 时有效 */
+  open?: boolean
 }>()
 
 const emit = defineEmits<{
   newChat: []
   select: [conversationId: string]
-  delete: [id: number]
+  delete: [conversationId: string]
   collapse: []
   expand: []
 }>()
@@ -188,11 +212,24 @@ function toggleMenu(conversationId: string, event: MouseEvent): void {
   }
 }
 
+/** 复制完整会话 ID，便于在会话观测中定位 */
+async function onCopyId(): Promise<void> {
+  const conversationId = openMenuId.value
+  closeMenu()
+  if (!conversationId) return
+  try {
+    await navigator.clipboard.writeText(conversationId)
+    ElMessage.success('已复制会话 ID')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
 async function onDelete(): Promise<void> {
   const conversationId = openMenuId.value
   const item = props.conversations.find((row) => row.conversationId === conversationId)
   closeMenu()
-  if (item?.id == null) return
+  if (!item) return
 
   const title = item.title?.trim() || '新对话'
   try {
@@ -205,7 +242,7 @@ async function onDelete(): Promise<void> {
   } catch {
     return
   }
-  emit('delete', item.id)
+  emit('delete', item.conversationId)
 }
 
 function onDocumentClick(): void {
@@ -239,6 +276,61 @@ onBeforeUnmount(() => {
 .conversation-list.collapsed {
   width: 52px;
   background: var(--g2-bg-container, #fff);
+}
+
+/* 抽屉：固定在左侧，只用 transform 做动画，不触发重排 */
+.conversation-list.is-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  width: min(300px, 85vw);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+  border-right: none;
+  box-shadow: 0 0 24px rgb(0 0 0 / 12%);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.26s;
+  will-change: transform;
+}
+
+.conversation-list.is-drawer.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-list.is-drawer,
+  .conversation-list.is-drawer.is-open {
+    transition: none;
+  }
+}
+
+/* 触屏：没有悬停，更多按钮常显，点击区域加大 */
+@media (hover: none) {
+  .more-btn {
+    width: 36px;
+    height: 36px;
+    opacity: 1;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .conversation-main {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }
 
 .rail {

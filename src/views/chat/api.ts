@@ -106,7 +106,7 @@ export class ChatApi {
     return (res.data ?? []).filter((item) => item.id != null && item.agentName)
   }
 
-  /** g2rain-model-nexus：ACTIVE 模型下拉（选项 value/展示均用 modelName） */
+  /** g2rain-model-nexus：ACTIVE 模型下拉（value 用 modelName，展示用 displayName） */
   static async listModels(): Promise<ModelProfileItem[]> {
     const http = getHttpClient()
     const res = await http.client.get<ModelProfileItem[]>('/model/model_service_profile/options')
@@ -115,33 +115,30 @@ export class ChatApi {
 
   static async listConversations(): Promise<ChatConversation[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatConversation[]>('/harness/chat_conversation/list')
-    const rows = res.data ?? []
-    return [...rows].sort((a, b) => {
-      const ta = a.lastMessageTime ? Date.parse(a.lastMessageTime) : 0
-      const tb = b.lastMessageTime ? Date.parse(b.lastMessageTime) : 0
-      return tb - ta
-    })
+    // 只返回当前员工或访客自己的会话，服务端已按最近消息时间倒序
+    const res = await http.client.get<ChatConversation[]>('/harness/chat/conversation/list')
+    return res.data ?? []
   }
 
   static async listMessages(conversationId: string): Promise<ChatMessageRecord[]> {
     const http = getHttpClient()
-    const res = await http.client.get<ChatMessageRecord[]>('/harness/chat_message/list', {
+    const res = await http.client.get<ChatMessageRecord[]>('/harness/chat/message/list', {
       conversationId,
     })
     return res.data ?? []
   }
 
-  /** DELETE /harness/chat_conversation/{id} — 主键 id，非 conversationId */
-  static async deleteConversation(id: number): Promise<void> {
+  /** DELETE /harness/chat/conversation/{id} — 主键 id，非 conversationId；只能删除自己的会话 */
+  static async deleteConversation(conversationId: string): Promise<void> {
     const http = getHttpClient()
-    await http.client.delete(`/harness/chat_conversation/${id}`)
+    await http.client.delete(`/harness/chat/conversation/${encodeURIComponent(conversationId)}`)
   }
 
   static async sendTurn(
     req: TurnRequest,
     traceId: string,
     onProgress: (event: TurnEvent) => void,
+    onTitle: (event: TurnEvent) => void,
     onResult: (event: TurnEvent) => void,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -169,6 +166,8 @@ export class ChatApi {
       buffer = consumeSseBlocks(buffer + value, (event) => {
         if (event.type === 'PROGRESS') {
           onProgress(event)
+        } else if (event.type === 'TITLE') {
+          onTitle(event)
         } else if (event.type === 'RESULT') {
           gotResult = true
           onResult(event)

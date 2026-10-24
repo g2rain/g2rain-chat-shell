@@ -6,6 +6,7 @@ import {
   type Result,
 } from '@g2rain/http'
 import {
+  getAnonymousEntryKey,
   getApplicationCode,
   getAuthEndPoint,
   getPathWithContextPath,
@@ -16,7 +17,7 @@ import {
 } from '../../shared/env'
 import { Generator } from '../../shared/id'
 import { generateClient } from '../../shared/jwt'
-import { useAccessTokenStore } from '../../platform/stores/token.store'
+import { useAccessTokenStore, type AuthMode } from '../../platform/stores/token.store'
 import {
   fetchIamKeyId,
   fetchIamPublicKey,
@@ -31,6 +32,9 @@ export interface TokenRefreshResult {
   tokenKid: string
   client?: DpopClient
 }
+
+/** 跨标签页共享的密钥生成锁名（按应用区分，与 token store 存储键一致） */
+const CLIENT_LOCK = () => `g2rain-shell-client:${getApplicationCode()}`
 
 /**
  * Shell-owned SSO orchestration. Uses @g2rain/http auth client for token exchange;
@@ -81,33 +85,107 @@ class SsoService {
     return body.token
   }
 
+  /**
+   * 员工登录：跳转 IAM 登录页（访客点"登录"也走这里，沿用同一把密钥）。
+   */
   async redirectToSSO(): Promise<void> {
+    if (!peekReturnUrl()) {
+      saveReturnUrl()
+    }
+    await this.redirectToAuthorize('USER')
+  }
+
+  /**
+   * 匿名访客授权：免登录直接发码，访客身份由 IAM 按密钥指纹推导。
+   * 未配置接入码时回退为员工登录。
+   */
+  async authorizeAnonymous(): Promise<void> {
+    const entryKey = this.resolveEntryKey()
+    if (!entryKey) {
+      await this.redirectToSSO()
+      return
+    }
+    await this.redirectToAuthorize('ANONYMOUS', entryKey)
+  }
+
+  /**
+   * 是否开放匿名访问：URL {@code ?entry=}、已保存的接入码或部署配置任一存在。
+   */
+  canAuthorizeAnonymous(): boolean {
+    return Boolean(this.resolveEntryKey())
+  }
+
+  /**
+   * 需要重新取得身份时的统一入口（未登录、刷新失败、退出登录）：
+   * 开放匿名访问时回到访客身份，否则跳员工登录。
+   */
+  async reauthenticate(): Promise<void> {
+    if (this.canAuthorizeAnonymous()) {
+      await this.authorizeAnonymous()
+      return
+    }
+    await this.redirectToSSO()
+  }
+
+  /**
+   * 接入码优先级：URL {@code ?entry=} > 已保存 > 部署配置；URL 中的值会被保存，之后不再依赖 URL。
+   */
+  private resolveEntryKey(): string | null {
     const store = this.getStore()
-    if (!store.client) {
+    const fromUrl = new URLSearchParams(window.location.search).get('entry')?.trim()
+    if (fromUrl && fromUrl !== store.entryKey) {
+      store.setEntryKey(fromUrl)
+    }
+    return fromUrl || store.entryKey || getAnonymousEntryKey() || null
+  }
+
+  /**
+   * 取得 DPoP 密钥；首次生成时加跨标签页锁，拿到锁后先采用其他标签页刚写入的密钥。
+   */
+  private async ensureClient(): Promise<DpopClient> {
+    const store = this.getStore()
+    if (store.client) return store.client
+
+    const create = async (): Promise<void> => {
+      if (store.adoptPersistedClient()) return
       store.setClient(await generateClient())
     }
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      await navigator.locks.request(CLIENT_LOCK(), create)
+    } else {
+      await create()
+    }
+
     if (!store.client) {
       throw new Error('Client not initialized')
     }
+    return store.client
+  }
+
+  private async redirectToAuthorize(mode: AuthMode, entryKey?: string): Promise<void> {
+    const client = await this.ensureClient()
 
     const ssoBaseUrl = getSsoBaseUrl()
     if (!ssoBaseUrl) {
       throw new Error('VITE_SSO_BASE_URL is not configured')
     }
 
-    if (!peekReturnUrl()) {
-      saveReturnUrl()
-    }
-
     const redirectUri = window.location.origin + getPathWithContextPath(getRedirectUriPath())
     const ssoUrl = new URL(ssoBaseUrl + getAuthEndPoint())
-    ssoUrl.search = new URLSearchParams({
-      clientId: store.client.clientId,
+    const params = new URLSearchParams({
+      clientId: client.clientId,
       redirectUri,
       responseType: 'code',
-      publicKey: JSON.stringify(store.client.publicKey),
-    }).toString()
+      publicKey: JSON.stringify(client.publicKey),
+    })
+    if (mode === 'ANONYMOUS' && entryKey) {
+      params.set('mode', 'ANONYMOUS')
+      params.set('entryKey', entryKey)
+    }
+    ssoUrl.search = params.toString()
 
+    const store = this.getStore()
+    store.setAuthMode(mode)
     store.persistSnapshot()
     window.location.href = ssoUrl.toString()
   }
@@ -281,7 +359,7 @@ class SsoService {
     }
 
     if (!store.isLogin && store.status === 'NORMAL') {
-      void this.redirectToSSO().catch((error) => {
+      void this.reauthenticate().catch((error) => {
         console.error('[SSO] redirect on start failed:', error)
       })
     }
@@ -295,7 +373,7 @@ class SsoService {
         } catch (error) {
           console.error('[SSO] auto refresh failed:', error)
           if (store.status === 'NORMAL') {
-            await this.redirectToSSO()
+            await this.reauthenticate()
           }
         }
       },
@@ -306,7 +384,7 @@ class SsoService {
       async (logged) => {
         if (store.status === 'SSO' || store.status === 'LOGOUT') return
         if (!logged && store.status === 'NORMAL') {
-          await this.redirectToSSO()
+          await this.reauthenticate()
         }
       },
       { immediate: true },

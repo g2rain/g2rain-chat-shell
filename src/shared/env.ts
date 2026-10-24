@@ -73,6 +73,14 @@ export function getTokenEndPoint(): string {
   return getEnvVar('VITE_TOKEN_END_POINT', import.meta.env.VITE_TOKEN_END_POINT || '/auth/token')
 }
 
+/**
+ * 默认匿名接入码：直接访问对话页（不带 {@code ?entry=}）时使用，由运营公司创建后写入部署配置。
+ * 为空表示未开放匿名访问，未登录时走员工登录。
+ */
+export function getAnonymousEntryKey(): string {
+  return getEnvVar('VITE_ANONYMOUS_ENTRY_KEY', '').trim()
+}
+
 export function getRedirectUriPath(): string {
   const raw = getEnvVar('VITE_REDIRECT_URI', import.meta.env.VITE_REDIRECT_URI || '/sso_callback')
   return raw.startsWith('/') ? raw : `/${raw}`

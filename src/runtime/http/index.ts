@@ -52,7 +52,8 @@ export function initHttpClient(): HttpClientInstance {
       store.setClient({ ...store.client, isAuthenticated: false })
     }
     const { sso } = await import('../auth/sso')
-    await sso.redirectToSSO()
+    // 开放匿名访问时回到访客身份（保留密钥），否则跳员工登录
+    await sso.reauthenticate()
   }
 
   // Align with main-shell: baseURL = Context Path (e.g. /admin)
