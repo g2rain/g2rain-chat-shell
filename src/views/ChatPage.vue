@@ -265,7 +265,8 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
   const startedAt = Date.now()
 
   abortController?.abort()
-  abortController = new AbortController()
+  const controller = new AbortController()
+  abortController = controller
   const traceId = Generator.random()
 
   try {
@@ -303,11 +304,12 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
             ? { actions: event.actions, suggestions: event.suggestions ?? [] }
             : null
       },
-      abortController.signal,
+      controller.signal,
     )
     touchConversation(activeConversationId.value)
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    // 主动取消（切换会话、新一轮开始）不算失败
+    if (controller.signal.aborted) {
       return
     }
     errorMessage.value = toErrorMessage(error, '发送失败')

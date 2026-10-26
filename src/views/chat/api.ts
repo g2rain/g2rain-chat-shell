@@ -1,7 +1,3 @@
-import { createDpopProof } from '@g2rain/http'
-import { getApplicationCode, getContextPath } from '../../shared/env'
-import { useAccessTokenStore } from '../../platform/stores/token.store'
-import { useLocaleStore } from '../../platform/stores/locale.store'
 import { getHttpClient } from '../../runtime/http'
 import type {
   AgentProfileItem,
@@ -11,92 +7,6 @@ import type {
   TurnEvent,
   TurnRequest,
 } from './type'
-
-/** Business API path relative to `{contextPath}/api` (DPoP htu uses this segment only). */
-function apiPath(path: string): string {
-  return path.startsWith('/') ? path : `/${path}`
-}
-
-/** Full browser URL for `{contextPath}/api/*`. */
-function apiUrl(path: string): string {
-  const segment = apiPath(path)
-  const base = getContextPath()
-  if (base === '/' || base === '') {
-    return `/api${segment}`
-  }
-  return `${base}/api${segment}`
-}
-
-/**
- * SSE 走原生 fetch（@g2rain/http 无 stream）；鉴权与 business client 同契约（Bearer + DPoP）。
- * `path` 为 `/api` 后的业务段，同时作为 DPoP htu。
- */
-async function buildAuthenticatedFetchInit(
-  path: string,
-  method: string,
-  body?: unknown,
-  extraHeaders?: Record<string, string>,
-): Promise<RequestInit> {
-  const { sso } = await import('../../runtime/auth/sso')
-  await sso.ensureAccessToken()
-
-  const tokenStore = useAccessTokenStore()
-  if (!tokenStore.isLogin || !tokenStore.tokenString) {
-    throw new Error('NO_LOGIN')
-  }
-  const client = tokenStore.client
-  if (!client) {
-    throw new Error('DPOP_CLIENT_REQUIRED')
-  }
-
-  const headers = new Headers(extraHeaders)
-  headers.set('Authorization', `Bearer ${tokenStore.tokenString}`)
-  const locale = useLocaleStore().locale
-  if (locale) {
-    headers.set('Accept-Language', locale)
-  }
-
-  let payload: BodyInit | undefined
-  if (body !== undefined) {
-    payload = JSON.stringify(body)
-    headers.set('Content-Type', 'application/json')
-  }
-
-  const upperMethod = method.toUpperCase()
-  headers.set(
-    'DPoP',
-    await createDpopProof({
-      url: apiPath(path),
-      method: upperMethod,
-      data: body,
-      applicationCode: getApplicationCode(),
-      client,
-      jti: crypto.randomUUID(),
-    }),
-  )
-
-  return { method: upperMethod, headers, body: payload }
-}
-
-function consumeSseBlocks(
-  buffer: string,
-  onEvent: (event: TurnEvent) => void,
-): string {
-  let rest = buffer
-  let sep: number
-  while ((sep = rest.indexOf('\n\n')) >= 0) {
-    const block = rest.slice(0, sep)
-    rest = rest.slice(sep + 2)
-    const data = block
-      .split('\n')
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trimStart())
-      .join('\n')
-    if (!data) continue
-    onEvent(JSON.parse(data) as TurnEvent)
-  }
-  return rest
-}
 
 export class ChatApi {
   /** g2rain-agent-studio：ACTIVE 数字员工下拉（id + agentName） */
@@ -134,6 +44,7 @@ export class ChatApi {
     await http.client.delete(`/harness/chat/conversation/${encodeURIComponent(conversationId)}`)
   }
 
+  /** 发起一轮对话：SSE 与普通请求共用认证（Bearer、DPoP、401 刷新重放），按事件类型分发 */
   static async sendTurn(
     req: TurnRequest,
     traceId: string,
@@ -142,28 +53,12 @@ export class ChatApi {
     onResult: (event: TurnEvent) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    const init = await buildAuthenticatedFetchInit('/harness/v1/chat/completions', 'POST', req, {
-      Accept: 'text/event-stream',
-      'X-TRACE-ID': traceId,
-    })
-
-    const resp = await fetch(apiUrl('/harness/v1/chat/completions'), {
-      ...init,
-      signal,
-    })
-
-    if (!resp.ok || !resp.body) {
-      throw new Error(`HTTP ${resp.status}`)
-    }
-
-    const reader = resp.body.pipeThrough(new TextDecoderStream()).getReader()
-    let buffer = ''
+    const http = getHttpClient()
     let gotResult = false
-
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer = consumeSseBlocks(buffer + value, (event) => {
+    await http.client.sse<TurnEvent, TurnRequest>(
+      '/harness/v1/chat/completions',
+      req,
+      (event) => {
         if (event.type === 'PROGRESS') {
           onProgress(event)
         } else if (event.type === 'TITLE') {
@@ -172,9 +67,9 @@ export class ChatApi {
           gotResult = true
           onResult(event)
         }
-      })
-    }
-
+      },
+      { headers: { 'X-TRACE-ID': traceId }, signal },
+    )
     if (!gotResult) {
       throw new Error('stream closed before RESULT')
     }
