@@ -24,6 +24,7 @@
         <MessageList
           :messages="messages"
           :loading="loadingMessages"
+          v-model:live-expanded="liveExpanded"
           :live-steps="liveSteps"
         />
         <div class="scroll-spacer" aria-hidden="true" />
@@ -79,6 +80,9 @@ const props = defineProps<{
   agents: AgentProfileItem[]
   models: ModelProfileItem[]
 }>()
+
+/** 执行中的时间线是否展开；透传给消息列表 */
+const liveExpanded = defineModel<boolean>('liveExpanded', { default: false })
 
 const agentId = defineModel<number | null>('agentId', { required: true })
 const model = defineModel<string | null>('model', { required: true })

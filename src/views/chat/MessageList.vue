@@ -16,6 +16,7 @@
               :steps="message.progress"
               :elapsed-ms="message.elapsedMs"
               :trace-id="message.traceId"
+              :default-expanded="message.progressExpanded"
             />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
@@ -59,7 +60,12 @@
       <div v-if="liveSteps" class="message-row is-agent">
         <div class="message-row__inner">
           <div class="message-bubble">
-            <ProgressTimeline :steps="liveSteps" running />
+            <ProgressTimeline
+              :steps="liveSteps"
+              running
+              :default-expanded="liveExpanded"
+              @update:expanded="liveExpanded = $event"
+            />
           </div>
         </div>
       </div>
@@ -83,6 +89,9 @@ defineProps<{
   /** 本轮执行中的步骤；不在执行时为 null */
   liveSteps: TurnStep[] | null
 }>()
+
+/** 执行中的时间线是否展开；出结果时由页面带到最终回复上 */
+const liveExpanded = defineModel<boolean>('liveExpanded', { default: false })
 
 /** AI 回复统一按 Markdown 渲染：不信任原始 HTML，只认 ``` 代码块 */
 const markdown = new MarkdownIt({ html: false, breaks: true, linkify: true }).disable('code')

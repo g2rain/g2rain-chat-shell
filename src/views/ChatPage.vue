@@ -40,6 +40,7 @@
       <ChatPanel
         :messages="messages"
         :loading-messages="loadingMessages"
+        v-model:live-expanded="liveExpanded"
         :live-steps="liveSteps"
         :pending-actions="pendingActions"
         :streaming="streaming"
@@ -111,6 +112,8 @@ const loadingMessages = ref(false)
 const streaming = ref(false)
 /** 本轮执行中的步骤；不在执行时为 null */
 const liveSteps = ref<TurnStep[] | null>(null)
+/** 执行中的时间线是否展开；出结果后带到最终回复上，保持展开 */
+const liveExpanded = ref(false)
 const pendingActions = ref<PendingTurnActions | null>(null)
 const lastUserInput = ref<string | null>(null)
 const errorMessage = ref<string | null>(null)
@@ -258,6 +261,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
   streaming.value = true
   clearTurnUi({ clearError: true })
   liveSteps.value = []
+  liveExpanded.value = false
   const startedAt = Date.now()
 
   abortController?.abort()
@@ -291,6 +295,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
             progress: steps.length ? steps : undefined,
             traceId: event.traceId ?? traceId,
             failed: event.status === 'FAILED',
+            progressExpanded: liveExpanded.value,
           })
         }
         pendingActions.value =

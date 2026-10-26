@@ -52,7 +52,11 @@ const props = defineProps<{
   elapsedMs?: number
   /** 本轮追踪号；展开后底部展示，可复制完整值 */
   traceId?: string
+  /** 初始是否展开 */
+  defaultExpanded?: boolean
 }>()
+
+const emit = defineEmits<{ 'update:expanded': [expanded: boolean] }>()
 
 const copied = ref(false)
 
@@ -67,7 +71,8 @@ async function copyTrace(): Promise<void> {
   setTimeout(() => (copied.value = false), 1500)
 }
 
-const expanded = ref(false)
+const expanded = ref(props.defaultExpanded ?? false)
+watch(expanded, (value) => emit('update:expanded', value))
 const failed = computed(() => isFailed(props.steps))
 
 /** 按 parentStepId 深度优先展开为带缩进的行，保持开始顺序 */
