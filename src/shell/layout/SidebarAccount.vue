@@ -87,22 +87,25 @@
               <el-icon class="identity-icon"><User /></el-icon>
               <span class="identity-text">{{ accountLabel }}</span>
             </div>
-            <button
-              v-for="item in userChoices"
-              :key="item.key"
-              type="button"
-              class="flyout-user"
-              :class="{ active: item.current }"
-              :disabled="switching"
-              @click="selectUser(item)"
-            >
-              <span class="avatar sm">{{ item.initial }}</span>
-              <span class="flyout-user-text">
-                <span class="flyout-user-name">{{ item.label }}</span>
-                <span v-if="item.sub" class="flyout-user-sub">{{ item.sub }}</span>
-              </span>
-              <span v-if="item.current" class="flyout-check">✓</span>
-            </button>
+            <!-- 身份列表：约 5 条高度后滚动 -->
+            <div class="flyout-users">
+              <button
+                v-for="item in userChoices"
+                :key="item.key"
+                type="button"
+                class="flyout-user"
+                :class="{ active: item.current }"
+                :disabled="switching"
+                @click="selectUser(item)"
+              >
+                <span class="avatar sm">{{ item.initial }}</span>
+                <span class="flyout-user-text">
+                  <span class="flyout-user-name">{{ item.label }}</span>
+                  <span v-if="item.sub" class="flyout-user-sub">{{ item.sub }}</span>
+                </span>
+                <span v-if="item.current" class="flyout-check">✓</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -511,6 +514,13 @@ async function logout(): Promise<void> {
 }
 
 /* 透明桥：盖住 8px 间隙，鼠标从机构行移到二级时不会掉出 hover 区域 */
+.flyout-users {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
 .user-flyout::before {
   content: '';
   position: absolute;
