@@ -178,6 +178,7 @@ class SsoService {
       redirectUri,
       responseType: 'code',
       publicKey: JSON.stringify(client.publicKey),
+      applicationCode: getApplicationCode(),
     })
     if (mode === 'ANONYMOUS' && entryKey) {
       params.set('mode', 'ANONYMOUS')
