@@ -20,6 +20,7 @@ import { useSessionStore } from '../platform/stores/session.store'
 import { awaitRuntimeEnvConfig } from '../shared/env'
 import { createShellRouter } from './router'
 import { initHttpClient } from './http'
+import { silenceNotified } from './http/notified'
 import { sso } from './auth/sso'
 import { startLocaleBoot } from './boot/locale.boot'
 // chat 壳只承载对话 UI，不需要侧栏菜单 / 权限菜单拉数，故不启 menu.boot。
@@ -41,6 +42,7 @@ export async function boot(): Promise<App> {
   rewriteMicroDeepLinkToGateway()
 
   const app = createApp(AppRoot)
+  silenceNotified(app)
   const pinia = createPinia()
   app.use(pinia)
 
