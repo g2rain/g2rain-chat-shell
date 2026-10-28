@@ -49,3 +49,4 @@ docker compose -f docker-compose.sign.yml up --build
 - [ ] 静态资源 404 回退正确
 - [ ] 子应用 `entry` 仅来自受信配置
 - [ ] 生产 `SSO_BASE_URL` 已注入（`env-config.js`）
+- [ ] 需开放匿名访问时：deploy `.env` 已设 `CHAT_ANONYMOUS_ENTRY_KEY`，容器内映射为 `ANONYMOUS_ENTRY_KEY` 并写入 `env-config.js`；不需要则留空

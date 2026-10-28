@@ -19,7 +19,7 @@
 
 **生产 SSO：** 构建生成 `dist/env-config.js`（`__SSO_BASE_URL__`）；`docker-entrypoint.sh` 用环境变量 `SSO_BASE_URL` 替换；`getSsoBaseUrl()` 优先读 `window._env_`。deploy 需设置 `SSO_BASE_URL`（如 `${PLATFORM_BASE_URL}`）。
 
-**匿名访问：** 接入码优先级为 URL `?entry=` > 已保存的接入码 > `VITE_ANONYMOUS_ENTRY_KEY`。默认接入码由运营公司在 manager-app「应用授权 → 匿名接入码」中创建，再通过容器环境变量 `ANONYMOUS_ENTRY_KEY` 注入；租户访客通过 `/chat?entry=ek_...` 进入。
+**匿名访问：** 接入码优先级为 URL `?entry=` > 已保存的接入码 > `VITE_ANONYMOUS_ENTRY_KEY`。默认接入码由运营公司在 manager-app「应用授权 → 匿名接入码」中创建。deploy 宿主机 `.env` 写 `CHAT_ANONYMOUS_ENTRY_KEY`，`business.d/g2rain-chat-shell.yml` 映射为容器 `ANONYMOUS_ENTRY_KEY`，再由 `docker-entrypoint.sh` 写入 `env-config.js`；为空表示不开放匿名访问。租户访客也可通过 `/chat?entry=ek_...` 进入。
 
 ## 源码占位符
 
