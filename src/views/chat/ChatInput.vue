@@ -35,7 +35,7 @@
           v-model="draft"
           class="composer__field"
           rows="1"
-          placeholder="有问题，随便问"
+          :placeholder="$t('CS_CHAT_INPUT_PH', '有问题，随便问')"
           :disabled="disabled"
           @input="autoResize"
           @keydown.enter="onEnter"
@@ -49,10 +49,10 @@
                 class="composer-select__native"
                 :value="agentId == null ? '' : String(agentId)"
                 :disabled="disabled"
-                aria-label="数字员工"
+                :aria-label="$t('CS_CHAT_AGENT', '数字员工')"
                 @change="agentId = parseSelectId($event)"
               >
-                <option value="">默认路由</option>
+                <option value="">{{ $t('CS_CHAT_AGENT_DEFAULT', '默认路由') }}</option>
                 <option
                   v-for="item in agents"
                   :key="item.id"
@@ -67,10 +67,10 @@
                 class="composer-select__native"
                 :value="model ?? ''"
                 :disabled="disabled"
-                aria-label="模型"
+                :aria-label="$t('CS_CHAT_MODEL', '模型')"
                 @change="model = parseSelectModel($event)"
               >
-                <option value="">默认模型</option>
+                <option value="">{{ $t('CS_CHAT_MODEL_DEFAULT', '默认模型') }}</option>
                 <option
                   v-for="item in models"
                   :key="item.modelName"
@@ -85,20 +85,24 @@
             type="button"
             class="composer__send"
             :disabled="disabled || !draft.trim()"
-            aria-label="发送"
+            :aria-label="$t('CS_CHAT_SEND', '发送')"
             @click="submit"
           >
             <SendIcon />
           </button>
         </div>
       </div>
-      <p class="disclaimer">G2rain Chat 由 AI 生成内容，可能不准确。重要信息请核实后再使用。</p>
+      <p class="disclaimer">{{ $t('CS_CHAT_DISCLAIMER', 'G2rain Chat 由 AI 生成内容，可能不准确。重要信息请核实后再使用。') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { t } from '../../platform/i18n'
+import { useLocaleStore } from '../../platform/stores/locale.store'
+import { DictItemApi } from '../dict/api'
 import type {
   AgentProfileItem,
   ModelProfileItem,
@@ -125,21 +129,50 @@ const emit = defineEmits<{
 
 const draft = ref('')
 const fieldRef = ref<HTMLTextAreaElement | null>(null)
+const { locale: userLocale } = storeToRefs(useLocaleStore())
 
-const actionLabels: Record<ResumeAction, string> = {
-  CONFIRM: '确认',
-  REJECT: '拒绝',
-  CANCEL: '取消',
-  REPLY: '回复',
+/** RT_RESUME_ACTION 字典文案；按 locale 重载 */
+const actionLabelMap = ref<Partial<Record<ResumeAction, string>>>({})
+
+function actionLabelFallback(action: ResumeAction): string {
+  if (action === 'CONFIRM') return t('CS_CHAT_ACT_CONFIRM', '确认')
+  if (action === 'REJECT') return t('CS_CHAT_ACT_REJECT', '拒绝')
+  if (action === 'CANCEL') return t('CS_CHAT_ACT_CANCEL', '取消')
+  return t('CS_CHAT_ACT_REPLY', '回复')
 }
 
+async function loadActionLabels(): Promise<void> {
+  try {
+    const items = await DictItemApi.loadByUsageCode('RT_RESUME_ACTION')
+    const next: Partial<Record<ResumeAction, string>> = {}
+    for (const item of items) {
+      const code = String(item.code ?? '').trim() as ResumeAction
+      if (code && item.name) next[code] = String(item.name)
+    }
+    actionLabelMap.value = next
+  } catch (error) {
+    console.warn('[ChatInput] 加载恢复动作字典失败:', error)
+    actionLabelMap.value = {}
+  }
+}
+
+onMounted(() => {
+  void loadActionLabels()
+})
+
+watch(userLocale, () => {
+  DictItemApi.clearUsageCache('RT_RESUME_ACTION')
+  void loadActionLabels()
+})
+
 const visibleActions = computed(() => {
+  void userLocale.value
   if (!props.pendingActions) return []
   return props.pendingActions.actions
     .filter((action) => action !== 'REPLY')
     .map((action) => ({
       value: action,
-      label: actionLabels[action],
+      label: actionLabelMap.value[action] || actionLabelFallback(action),
     }))
 })
 
@@ -384,14 +417,14 @@ watch(draft, () => {
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: #5b6cff;
+  background: var(--g2-color-primary, #5b6cff);
   color: #fff;
   cursor: pointer;
 }
 
 .composer__send:disabled {
-  background: #d8d8e0;
-  color: #fff;
+  background: color-mix(in srgb, var(--g2-text-primary) 12%, transparent);
+  color: color-mix(in srgb, var(--g2-text-primary) 42%, transparent);
   cursor: not-allowed;
 }
 

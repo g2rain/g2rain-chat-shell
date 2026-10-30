@@ -27,8 +27,13 @@
         </span>
       </li>
       <li v-if="traceId" class="timeline__trace">
-        <button type="button" class="timeline__copy" title="复制追踪号" @click="copyTrace">
-          追踪号 {{ traceId }}
+        <button
+          type="button"
+          class="timeline__copy"
+          :title="$t('CS_CHAT_COPY_TRACE', '复制完整追踪号')"
+          @click="copyTrace"
+        >
+          {{ $t('CS_CHAT_TRACE', '追踪号') }} {{ traceId }}
           <CheckIcon v-if="copied" />
           <CopyIcon v-else />
         </button>
@@ -39,6 +44,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { t } from '../../platform/i18n'
 import type { TurnStep } from './type'
 import { formatDuration, isFailed } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
@@ -95,7 +101,11 @@ const rows = computed(() => {
 
 const current = computed(() => [...props.steps].reverse().find((step) => step.status === 'RUNNING'))
 
-const headline = computed(() => (props.running ? (current.value?.title ?? '正在处理') : '执行过程'))
+const headline = computed(() =>
+  props.running
+    ? (current.value?.title ?? t('CS_CHAT_PROCESSING', '正在处理'))
+    : t('CS_CHAT_PROGRESS', '执行过程'),
+)
 
 /** 执行中本地计时，结束后用本轮耗时 */
 const now = ref(Date.now())

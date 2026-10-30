@@ -3,12 +3,12 @@
     <div v-if="errorMessage" class="chat-error">
       <span>{{ errorMessage }}</span>
       <button v-if="canRetry" type="button" class="retry-btn" @click="emit('retry')">
-        重试
+        {{ $t('G2_BTN_RETRY', '重试') }}
       </button>
     </div>
 
     <div v-if="isEmpty" class="empty-state">
-      <h1 class="empty-greeting">我能帮你什么忙吗{{ greetingSuffix }}</h1>
+      <h1 class="empty-greeting">{{ $t('CS_CHAT_GREETING', '我能帮你什么忙吗') }}{{ greetingSuffix }}</h1>
       <ChatInput
         v-bind="composerBind"
         v-model:agent-id="agentId"
@@ -35,8 +35,8 @@
           v-show="showJumpBottom"
           type="button"
           class="jump-bottom"
-          title="回到底部"
-          aria-label="回到底部"
+          :title="$t('CS_CHAT_JUMP_BOTTOM', '回到底部')"
+          :aria-label="$t('CS_CHAT_JUMP_BOTTOM', '回到底部')"
           @click="scrollToBottom"
         >
           <ScrollDownIcon />
@@ -55,6 +55,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { t } from '../../platform/i18n'
 import type {
   AgentProfileItem,
   ChatMessageItem,
@@ -102,7 +103,9 @@ const isEmpty = computed(
 
 const greetingSuffix = computed(() => {
   const name = props.greetingName?.trim()
-  return name ? `，${name}？` : '？'
+  return name
+    ? t('CS_CHAT_GREETING_NAME', { name }, '，{name}？')
+    : t('CS_CHAT_GREETING_MARK', '？')
 })
 
 const composerBind = computed(() => ({
