@@ -22,7 +22,13 @@
     <div class="chat-main">
       <!-- 紧凑布局（手机、平板竖屏）：侧栏收进抽屉，顶栏提供入口 -->
       <header v-if="compact" class="mobile-bar">
-        <button type="button" class="bar-btn" title="打开侧栏" aria-label="打开侧栏" @click="drawerOpen = true">
+        <button
+          type="button"
+          class="bar-btn"
+          :title="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
+          :aria-label="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
+          @click="drawerOpen = true"
+        >
           <SidebarIcon />
         </button>
         <span class="bar-title">{{ activeTitle || baseTitle }}</span>
@@ -30,8 +36,8 @@
           type="button"
           class="bar-btn"
           :disabled="streaming"
-          title="新对话"
-          aria-label="新对话"
+          :title="$t('CS_CHAT_NEW', '新对话')"
+          :aria-label="$t('CS_CHAT_NEW', '新对话')"
           @click="startNewChat"
         >
           <ComposeIcon />
@@ -62,6 +68,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { t } from '../platform/i18n'
 import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
 import { ChatApi } from './chat/api'
@@ -153,7 +160,7 @@ async function loadConversations(): Promise<void> {
   try {
     conversations.value = await ChatApi.listConversations()
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '加载会话列表失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_LIST', '加载会话列表失败'))
   } finally {
     loadingConversations.value = false
   }
@@ -184,7 +191,7 @@ async function loadMessages(conversationId: string): Promise<void> {
     const rows = await ChatApi.listMessages(conversationId)
     messages.value = historyToChatItems(rows)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '加载历史消息失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_HISTORY', '加载历史消息失败'))
     messages.value = []
   } finally {
     loadingMessages.value = false
@@ -204,7 +211,7 @@ async function deleteConversation(conversationId: string): Promise<void> {
   try {
     await ChatApi.deleteConversation(conversationId)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '删除会话失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_DELETE', '删除会话失败'))
     return
   }
   conversations.value = conversations.value.filter((item) => item.conversationId !== conversationId)
@@ -312,7 +319,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
     if (controller.signal.aborted) {
       return
     }
-    errorMessage.value = toErrorMessage(error, '发送失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_SEND', '发送失败'))
     if (activeConversationId.value) {
       void loadMessages(activeConversationId.value)
     }

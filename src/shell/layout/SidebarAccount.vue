@@ -1,129 +1,133 @@
 <template>
   <div class="sidebar-account" :class="{ collapsed }">
-    <!-- 访客：显示访客身份与所属机构，右侧"登录"；不弹菜单（访客没有设置与退出） -->
-    <template v-if="isVisitor">
-      <div class="profile-trigger visitor-row" :class="{ collapsed }">
+    <!-- 访客 / 员工：同一套小菜单（宽 200）；访客藏机构与退出，旁路登录按钮 -->
+    <template v-if="isVisitor || isLoggedIn">
+      <div :class="isVisitor ? ['visitor-row', { collapsed }] : undefined">
+        <el-popover
+          v-model:visible="menuOpen"
+          :placement="collapsed ? 'right-end' : 'top-start'"
+          :width="200"
+          trigger="click"
+          :hide-after="0"
+          popper-class="sidebar-account-popper"
+          @show="onMenuShow"
+          @after-leave="userFlyoutOpen = false"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="profile-trigger"
+              :class="{ collapsed }"
+              :title="isVisitor ? $t('CS_ACC_VISITOR', '访客') : displayName"
+              :aria-label="$t('CS_ACC_MENU_ARIA', '账号菜单')"
+            >
+              <span class="avatar">
+                {{ isVisitor ? $t('CS_ACC_VISITOR_INITIAL', '访') : userInitial }}
+              </span>
+              <span v-if="!collapsed" class="profile-name">
+                <template v-if="isVisitor">
+                  {{ $t('CS_ACC_VISITOR', '访客') }}<span v-if="organ?.name" class="visitor-organ"> · {{ organ.name }}</span>
+                </template>
+                <template v-else>{{ displayName }}</template>
+              </span>
+            </button>
+          </template>
+
+          <div class="account-menu">
+            <!-- 一级：机构卡，右侧 >；hover（触屏为点击）出二级身份列表 -->
+            <div
+              v-if="!isVisitor"
+              class="organ-card"
+              @mouseenter="onOrganEnter"
+              @mouseleave="onOrganLeave"
+              @click="onOrganClick"
+            >
+              <span class="avatar sm">{{ organInitial }}</span>
+              <span class="organ-text">
+                <span class="organ-name">{{ organName }}</span>
+                <span class="organ-sub">{{ displayName }}</span>
+              </span>
+              <el-icon class="row-chevron"><ArrowRight /></el-icon>
+
+              <div
+                v-show="userFlyoutOpen"
+                class="user-flyout"
+                @mouseenter="openUserFlyout"
+                @click.stop
+              >
+                <div class="flyout-identity">
+                  <el-icon class="identity-icon"><User /></el-icon>
+                  <span class="identity-text">{{ accountLabel }}</span>
+                </div>
+                <!-- 身份列表：约 5 条高度后滚动 -->
+                <div class="flyout-users">
+                  <button
+                    v-for="item in userChoices"
+                    :key="item.key"
+                    type="button"
+                    class="flyout-user"
+                    :class="{ active: item.current }"
+                    :disabled="switching"
+                    @click="selectUser(item)"
+                  >
+                    <span class="avatar sm">{{ item.initial }}</span>
+                    <span class="flyout-user-text">
+                      <span class="flyout-user-name">{{ item.label }}</span>
+                      <span v-if="item.sub" class="flyout-user-sub">{{ item.sub }}</span>
+                    </span>
+                    <span v-if="item.current" class="flyout-check">✓</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="menu-item"
+              :class="{ 'menu-item--settings': !isVisitor }"
+              @click="openSettings"
+            >
+              <el-icon><Setting /></el-icon>
+              <span>{{ $t('CS_ACC_SETTINGS', '设置') }}</span>
+            </button>
+            <button
+              v-if="!isVisitor"
+              type="button"
+              class="menu-item"
+              @click="logout"
+            >
+              <el-icon><SwitchButton /></el-icon>
+              <span>{{ $t('MS_HDR_LOGOUT', '退出登录') }}</span>
+            </button>
+          </div>
+        </el-popover>
         <button
-          v-if="collapsed"
+          v-if="isVisitor && !collapsed"
           type="button"
-          class="avatar avatar-button"
-          title="访客，点击登录"
-          aria-label="登录"
+          class="visitor-login"
           @click="login"
-        >访</button>
-        <template v-else>
-          <span class="avatar">访</span>
-          <span class="profile-name">
-            访客<span v-if="organ?.name" class="visitor-organ"> · {{ organ.name }}</span>
-          </span>
-          <button type="button" class="visitor-login" @click="login">登录</button>
-        </template>
+        >
+          {{ $t('CS_ACC_LOGIN', '登录') }}
+        </button>
       </div>
-      <p v-if="!collapsed && !tokenStore.persistable" class="visitor-hint">
-        当前浏览器无法保存访客记录，关闭页面后对话将丢失
+      <p v-if="isVisitor && !collapsed && !tokenStore.persistable" class="visitor-hint">
+        {{ $t('CS_ACC_VISITOR_HINT', '当前浏览器无法保存访客记录，关闭页面后对话将丢失') }}
       </p>
     </template>
 
     <!-- 尚未取得任何身份（通常正在跳转授权） -->
     <button
-      v-else-if="!isLoggedIn"
+      v-else
       type="button"
       class="profile-trigger"
       :class="{ collapsed }"
-      title="登录"
-      aria-label="登录"
+      :title="$t('CS_ACC_LOGIN', '登录')"
+      :aria-label="$t('CS_ACC_LOGIN', '登录')"
       @click="login"
     >
       <span class="avatar"><el-icon><User /></el-icon></span>
-      <span v-if="!collapsed" class="profile-name">登录</span>
+      <span v-if="!collapsed" class="profile-name">{{ $t('CS_ACC_LOGIN', '登录') }}</span>
     </button>
-
-    <el-popover
-      v-else
-      v-model:visible="menuOpen"
-      :placement="collapsed ? 'right-end' : 'top-start'"
-      :width="280"
-      trigger="click"
-      :hide-after="0"
-      popper-class="sidebar-account-popper"
-      @show="onMenuShow"
-      @after-leave="userFlyoutOpen = false"
-    >
-      <template #reference>
-        <button
-          type="button"
-          class="profile-trigger"
-          :class="{ collapsed }"
-          :title="displayName"
-          aria-label="账号菜单"
-        >
-          <span class="avatar">{{ userInitial }}</span>
-          <span v-if="!collapsed" class="profile-name">{{ displayName }}</span>
-        </button>
-      </template>
-
-      <div class="account-menu">
-        <!-- 一级：机构卡，右侧 >；hover（触屏为点击）出二级身份列表 -->
-        <div
-          class="organ-card"
-          @mouseenter="onOrganEnter"
-          @mouseleave="onOrganLeave"
-          @click="onOrganClick"
-        >
-          <span class="avatar sm">{{ organInitial }}</span>
-          <span class="organ-text">
-            <span class="organ-name">{{ organName }}</span>
-            <span class="organ-sub">{{ displayName }}</span>
-          </span>
-          <el-icon class="row-chevron"><ArrowRight /></el-icon>
-
-          <div
-            v-show="userFlyoutOpen"
-            class="user-flyout"
-            @mouseenter="openUserFlyout"
-            @click.stop
-          >
-            <div class="flyout-identity">
-              <el-icon class="identity-icon"><User /></el-icon>
-              <span class="identity-text">{{ accountLabel }}</span>
-            </div>
-            <!-- 身份列表：约 5 条高度后滚动 -->
-            <div class="flyout-users">
-              <button
-                v-for="item in userChoices"
-                :key="item.key"
-                type="button"
-                class="flyout-user"
-                :class="{ active: item.current }"
-                :disabled="switching"
-                @click="selectUser(item)"
-              >
-                <span class="avatar sm">{{ item.initial }}</span>
-                <span class="flyout-user-text">
-                  <span class="flyout-user-name">{{ item.label }}</span>
-                  <span v-if="item.sub" class="flyout-user-sub">{{ item.sub }}</span>
-                </span>
-                <span v-if="item.current" class="flyout-check">✓</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" class="menu-item menu-item--settings" @click="openSettings">
-          <el-icon><Setting /></el-icon>
-          <span>设置</span>
-        </button>
-        <button
-          v-if="isLoggedIn"
-          type="button"
-          class="menu-item"
-          @click="logout"
-        >
-          <el-icon><SwitchButton /></el-icon>
-          <span>退出登录</span>
-        </button>
-      </div>
-    </el-popover>
 
     <ShellSettingsDialog v-model="settingsOpen" />
   </div>
@@ -135,6 +139,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ArrowRight, Setting, SwitchButton, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { t } from '../../platform/i18n'
 import { useSessionStore } from '../../platform/stores/session.store'
 import { useAccessTokenStore } from '../../platform/stores/token.store'
 import { useMenuStore } from '../../platform/stores/menu.store'
@@ -167,16 +172,16 @@ const switching = ref(false)
 let closeFlyoutTimer: ReturnType<typeof setTimeout> | null = null
 
 const displayName = computed(() => {
-  if (!isLoggedIn.value || !user.value) return '游客'
-  return user.value.displayName || user.value.account || '用户'
+  if (!isLoggedIn.value || !user.value) return t('CS_ACC_GUEST', '游客')
+  return user.value.displayName || user.value.account || t('CS_ACC_USER', '用户')
 })
 
 const accountLabel = computed(() => {
-  if (!isLoggedIn.value || !user.value) return '未登录'
-  return user.value.account || '加载中…'
+  if (!isLoggedIn.value || !user.value) return t('G2_ERR_NO_LOGIN', '未登录')
+  return user.value.account || t('CS_ACC_LOADING', '加载中…')
 })
 
-const organName = computed(() => organ.value?.name || '未选择机构')
+const organName = computed(() => organ.value?.name || t('CS_ACC_NO_ORGAN', '未选择机构'))
 const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase())
 const organInitial = computed(() => organName.value.slice(0, 1).toUpperCase())
 
@@ -203,7 +208,7 @@ const userChoices = computed<UserChoice[]>(() => {
 
   return identities.value.map((item) => {
     const key = String(item.userId)
-    const label = item.organName || '未命名机构'
+    const label = item.organName || t('MS_HDR_ORGAN_UNNAMED', '未命名机构')
     return {
       key,
       label,
@@ -214,8 +219,9 @@ const userChoices = computed<UserChoice[]>(() => {
   })
 })
 
-/** 打开账号菜单：补齐登录账号，并刷新可切换身份 */
+/** 打开账号菜单：员工补齐登录账号并刷新可切换身份；访客无身份列表 */
 function onMenuShow(): void {
+  if (isVisitor.value) return
   void session.loadAccount()
   void loadIdentities()
 }
@@ -277,7 +283,10 @@ async function selectUser(item: UserChoice): Promise<void> {
     menuOpen.value = false
     window.location.assign(router.resolve('/').href)
   } catch (error) {
-    const message = error instanceof Error && error.message ? error.message : '切换失败，请稍后再试'
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : t('MS_HDR_SWITCH_FAIL', '切换失败，请稍后再试')
     ElMessage.error(message)
     switching.value = false
   }
@@ -313,11 +322,19 @@ async function logout(): Promise<void> {
 
 <style scoped>
 .visitor-row {
-  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
-.visitor-row:hover {
-  background: transparent;
+.visitor-row.collapsed {
+  justify-content: center;
+}
+
+.visitor-row .profile-trigger {
+  flex: 1;
+  min-width: 0;
 }
 
 .visitor-organ {
@@ -326,7 +343,6 @@ async function logout(): Promise<void> {
 
 .visitor-login {
   flex-shrink: 0;
-  margin-left: auto;
   padding: 4px 10px;
   border: 1px solid var(--g2-border-color, #dcdfe6);
   border-radius: 8px;
@@ -338,11 +354,6 @@ async function logout(): Promise<void> {
 
 .visitor-login:hover {
   background: color-mix(in srgb, var(--g2-text-primary) 6%, transparent);
-}
-
-.avatar-button {
-  border: none;
-  cursor: pointer;
 }
 
 .visitor-hint {
@@ -634,19 +645,21 @@ async function logout(): Promise<void> {
 }
 
 .menu-item--settings {
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: 6px;
+  padding-top: 10px;
   border-top: 1px solid var(--g2-border-color-light, #ececec);
-  border-bottom: 1px solid var(--g2-border-color-light, #ececec);
-  border-radius: 0;
+  border-radius: 0 0 8px 8px;
 }
 </style>
 
 <style>
 .sidebar-account-popper.el-popper {
   z-index: 3000 !important;
-  border-radius: 14px;
   padding: 6px;
+  border: 1px solid var(--g2-border-color-light, #ececec);
+  border-radius: 14px;
+  background: var(--g2-bg-container, #fff);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 12%);
   overflow: visible;
 }
 </style>

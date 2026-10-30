@@ -11,8 +11,8 @@
   >
     <template #header>
       <div class="settings-header">
-        <span class="settings-title">系统设置</span>
-        <button type="button" class="close-btn" aria-label="关闭" @click="close">
+        <span class="settings-title">{{ $t('CS_SET_TITLE', '系统设置') }}</span>
+        <button type="button" class="close-btn" :aria-label="$t('G2_BTN_CLOSE', '关闭')" @click="close">
           <el-icon><Close /></el-icon>
         </button>
       </div>
@@ -21,7 +21,7 @@
     <div class="settings-body">
       <div class="settings-content">
         <section class="setting-block">
-          <h3 class="block-label">主题</h3>
+          <h3 class="block-label">{{ $t('CS_SET_THEME', '主题') }}</h3>
           <div class="theme-cards">
             <button
               v-for="item in themeOptions"
@@ -35,13 +35,13 @@
                 <Sunny v-if="item.value === 'light'" />
                 <Moon v-else />
               </el-icon>
-              <span>{{ item.label }}</span>
+              <span>{{ themeLabel(item.value) }}</span>
             </button>
           </div>
         </section>
 
         <section class="setting-row">
-          <span class="row-label">语言</span>
+          <span class="row-label">{{ $t('CS_SET_LANG', '语言') }}</span>
           <el-select
             :model-value="locale"
             class="locale-select"
@@ -68,6 +68,7 @@ import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Close, Moon, Sunny } from '@element-plus/icons-vue'
 import type { G2rainTheme } from '@g2rain/platform/theme'
+import { t } from '../../platform/i18n'
 import { getMainPlatform } from '../../platform/main-platform'
 import { getThemeController } from '../../platform/theme'
 import { useLocaleStore } from '../../platform/stores/locale.store'
@@ -87,16 +88,26 @@ const runtimeStore = useRuntimeStore()
 const { locale, options: localeOptions, initialized: localeInitialized } = storeToRefs(localeStore)
 
 const theme = ref<G2rainTheme>(getThemeController().getTheme())
-const themeOptions: ReadonlyArray<{ value: G2rainTheme; label: string }> = [
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
+const themeOptions: ReadonlyArray<{ value: G2rainTheme }> = [
+  { value: 'light' },
+  { value: 'dark' },
 ]
+
+function themeLabel(mode: G2rainTheme): string {
+  if (mode === 'dark') return t('MS_THEME_DARK', '暗色主题')
+  return t('MS_THEME_LIGHT', '亮色主题')
+}
 
 watch(
   () => props.modelValue,
   (open) => {
     if (open) {
       theme.value = getThemeController().getTheme()
+      if (!localeStore.initialized) {
+        void localeStore.initialize().catch((error) => {
+          console.error('[ShellSettings] 语言列表初始化失败:', error)
+        })
+      }
     }
   },
 )
