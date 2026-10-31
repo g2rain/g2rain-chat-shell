@@ -104,7 +104,7 @@ const current = computed(() => [...props.steps].reverse().find((step) => step.st
 const headline = computed(() =>
   props.running
     ? (current.value?.title ?? t('CS_CHAT_PROCESSING', '正在处理'))
-    : t('CS_CHAT_PROGRESS', '执行过程'),
+    : t('G2_LBL_PROGRESS', '执行过程'),
 )
 
 /** 执行中本地计时，结束后用本轮耗时 */

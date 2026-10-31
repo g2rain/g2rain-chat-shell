@@ -52,7 +52,7 @@
                 :aria-label="$t('CS_CHAT_AGENT', '数字员工')"
                 @change="agentId = parseSelectId($event)"
               >
-                <option value="">{{ $t('CS_CHAT_AGENT_DEFAULT', '默认路由') }}</option>
+                <option value="">{{ $t('CS_CHAT_AGENT_DEFAULT', '自动分配') }}</option>
                 <option
                   v-for="item in agents"
                   :key="item.id"
@@ -67,7 +67,7 @@
                 class="composer-select__native"
                 :value="model ?? ''"
                 :disabled="disabled"
-                :aria-label="$t('CS_CHAT_MODEL', '模型')"
+                :aria-label="$t('G2_FIELD_MODEL', '模型')"
                 @change="model = parseSelectModel($event)"
               >
                 <option value="">{{ $t('CS_CHAT_MODEL_DEFAULT', '默认模型') }}</option>
@@ -135,9 +135,9 @@ const { locale: userLocale } = storeToRefs(useLocaleStore())
 const actionLabelMap = ref<Partial<Record<ResumeAction, string>>>({})
 
 function actionLabelFallback(action: ResumeAction): string {
-  if (action === 'CONFIRM') return t('CS_CHAT_ACT_CONFIRM', '确认')
+  if (action === 'CONFIRM') return t('G2_ACT_CONFIRM', '确认')
   if (action === 'REJECT') return t('CS_CHAT_ACT_REJECT', '拒绝')
-  if (action === 'CANCEL') return t('CS_CHAT_ACT_CANCEL', '取消')
+  if (action === 'CANCEL') return t('G2_BTN_CANCEL', '取消')
   return t('CS_CHAT_ACT_REPLY', '回复')
 }
 

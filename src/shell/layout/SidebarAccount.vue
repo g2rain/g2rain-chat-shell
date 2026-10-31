@@ -173,7 +173,7 @@ let closeFlyoutTimer: ReturnType<typeof setTimeout> | null = null
 
 const displayName = computed(() => {
   if (!isLoggedIn.value || !user.value) return t('CS_ACC_GUEST', '游客')
-  return user.value.displayName || user.value.account || t('CS_ACC_USER', '用户')
+  return user.value.displayName || user.value.account || t('G2_FIELD_USER', '用户')
 })
 
 const accountLabel = computed(() => {
