@@ -55,6 +55,7 @@
         :greeting-name="greetingName"
         :agents="agents"
         :models="models"
+        :prompt-templates="promptTemplates"
         v-model:agent-id="selectedAgentId"
         v-model:model="selectedModel"
         @send="sendUserInput"
@@ -81,6 +82,7 @@ import type {
   AgentProfileItem,
   ChatConversation,
   ChatMessageItem,
+  ChatPromptTemplate,
   ModelProfileItem,
   PendingTurnActions,
   ResumeAction,
@@ -129,6 +131,7 @@ const selectedAgentId = ref<number | null>(null)
 const selectedModel = ref<string | null>(null)
 const agents = ref<AgentProfileItem[]>([])
 const models = ref<ModelProfileItem[]>([])
+const promptTemplates = ref<ChatPromptTemplate[]>([])
 
 let abortController: AbortController | null = null
 
@@ -167,12 +170,14 @@ async function loadConversations(): Promise<void> {
 }
 
 async function loadComposerOptions(): Promise<void> {
-  const [agentResult, modelResult] = await Promise.allSettled([
+  const [agentResult, modelResult, promptResult] = await Promise.allSettled([
     ChatApi.listAgents(),
     ChatApi.listModels(),
+    ChatApi.listPromptTemplates(),
   ])
   agents.value = agentResult.status === 'fulfilled' ? agentResult.value : []
   models.value = modelResult.status === 'fulfilled' ? modelResult.value : []
+  promptTemplates.value = promptResult.status === 'fulfilled' ? promptResult.value : []
 }
 
 async function selectConversation(conversationId: string): Promise<void> {

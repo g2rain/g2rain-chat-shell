@@ -23,6 +23,7 @@
 | CS_CHAT_GREETING | 我能帮你什么忙吗 | ChatPanel |
 | CS_CHAT_GREETING_MARK | ？ | ChatPanel |
 | CS_CHAT_GREETING_NAME | ，{name}？ | ChatPanel |
+| CS_CHAT_PROMPT_TEMPLATES | 试试这样提问 | ChatPanel |
 | CS_CHAT_JUMP_BOTTOM | 回到底部 | ChatPanel |
 | CS_CHAT_ACT_CONFIRM | 确认 | ChatInput 字典兜底 |
 | CS_CHAT_ACT_REJECT | 拒绝 | ChatInput 字典兜底 |

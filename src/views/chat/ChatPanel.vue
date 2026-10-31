@@ -9,6 +9,18 @@
 
     <div v-if="isEmpty" class="empty-state">
       <h1 class="empty-greeting">{{ $t('CS_CHAT_GREETING', '我能帮你什么忙吗') }}{{ greetingSuffix }}</h1>
+      <div v-if="promptTemplates.length" class="prompt-templates" :aria-label="$t('CS_CHAT_PROMPT_TEMPLATES', '试试这样提问')">
+        <button
+          v-for="item in promptTemplates"
+          :key="item.id"
+          type="button"
+          class="prompt-template"
+          :disabled="streaming"
+          @click="emit('send', item.promptText)"
+        >
+          {{ item.promptText }}
+        </button>
+      </div>
       <ChatInput
         v-bind="composerBind"
         v-model:agent-id="agentId"
@@ -58,6 +70,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { t } from '../../platform/i18n'
 import type {
   AgentProfileItem,
+  ChatPromptTemplate,
   ChatMessageItem,
   ModelProfileItem,
   PendingTurnActions,
@@ -80,6 +93,7 @@ const props = defineProps<{
   greetingName?: string | null
   agents: AgentProfileItem[]
   models: ModelProfileItem[]
+  promptTemplates: ChatPromptTemplate[]
 }>()
 
 /** 执行中的时间线是否展开；透传给消息列表 */
@@ -184,6 +198,45 @@ watch(
   line-height: 1.35;
   color: var(--g2-text-primary);
   text-align: center;
+}
+
+.prompt-templates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.prompt-template {
+  max-width: min(100%, 560px);
+  padding: 10px 14px;
+  border: 1px solid var(--g2-border-color, #dcdfe6);
+  border-radius: 12px;
+  background: var(--g2-bg-container, #fff);
+  color: var(--g2-text-primary);
+  font: inherit;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.prompt-template:hover:not(:disabled),
+.prompt-template:focus-visible {
+  border-color: var(--g2-color-primary, #409eff);
+  background: var(--g2-bg-muted, #f5f7fa);
+  color: var(--g2-text-primary, #303133);
+}
+
+.prompt-template:focus-visible {
+  outline: 2px solid var(--g2-color-primary, #409eff);
+  outline-offset: 2px;
+}
+
+.prompt-template:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .chat-scroll {
