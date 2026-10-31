@@ -8,7 +8,7 @@
         <a href="javascript:void(0)" @click.prevent="gotoSsoIndex">{{ $t('CS_AU_IAM_SHORT', 'IAM 系统') }}</a>
         {{ $t('CS_AU_LOGOUT_DESC_SUFFIX', '。系统将在') }}
         {{ countdown }}
-        {{ $t('CS_AU_LOGOUT_COUNTDOWN', '秒后自动跳转。') }}
+        {{ $t('G2_AU_LOGOUT_COUNTDOWN', '秒后自动跳转。') }}
       </p>
       <button type="button" class="btn primary" @click="relogin">{{ $t('MS_AU_RELOGIN', '重新登录') }}</button>
     </div>

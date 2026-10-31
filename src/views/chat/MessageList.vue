@@ -28,14 +28,14 @@
               >
                 {{ formatMessageTime(message.createdAtMs) }}
                 <template v-if="message.role !== 'USER' && message.elapsedMs != null">
-                  · {{ $t('CS_CHAT_ELAPSED', '耗时') }} {{ formatDuration(message.elapsedMs) }}
+                  · {{ $t('G2_FIELD_DURATION', '耗时') }} {{ formatDuration(message.elapsedMs) }}
                 </template>
                 <template v-if="message.failed && message.traceId">
                   ·
                   <button
                     type="button"
                     class="trace-btn"
-                    :title="copiedTraceId === message.id ? $t('CS_CHAT_COPIED', '已复制') : $t('CS_CHAT_COPY_TRACE', '复制完整追踪号')"
+                    :title="copiedTraceId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('CS_CHAT_COPY_TRACE', '复制完整追踪号')"
                     @click="copyTrace(message)"
                   >
                     {{ $t('CS_CHAT_TRACE', '追踪号') }} {{ message.traceId.slice(-6) }}
@@ -45,8 +45,8 @@
               <button
                 type="button"
                 class="copy-btn"
-                :title="copiedId === message.id ? $t('CS_CHAT_COPIED', '已复制') : $t('CS_CHAT_COPY', '复制')"
-                :aria-label="copiedId === message.id ? $t('CS_CHAT_COPIED', '已复制') : $t('CS_CHAT_COPY', '复制')"
+                :title="copiedId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('G2_BTN_COPY', '复制')"
+                :aria-label="copiedId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('G2_BTN_COPY', '复制')"
                 @click="copyMessage(message)"
               >
                 <CheckIcon v-if="copiedId === message.id" />

@@ -2,7 +2,7 @@
   <div class="sso-callback">
     <div v-if="isLoading" class="panel">
       <div class="spinner" />
-      <p>{{ $t('MS_AU_SSO_PROC', '正在处理认证...') }}</p>
+      <p>{{ $t('G2_AU_SSO_PROC', '正在处理认证...') }}</p>
     </div>
     <div v-else-if="error && anonymous" class="panel error">
       <h2>{{ $t('CS_AU_ENTRY_UNAVAILABLE', '该入口暂不可用') }}</h2>
@@ -11,13 +11,13 @@
       <button type="button" class="btn" @click="goToLogin">{{ $t('CS_ACC_LOGIN', '登录') }}</button>
     </div>
     <div v-else-if="error" class="panel error">
-      <h2>{{ $t('MS_AU_SSO_FAIL', '认证失败') }}</h2>
+      <h2>{{ $t('G2_AU_SSO_FAIL', '认证失败') }}</h2>
       <p>{{ error }}</p>
       <button type="button" class="btn primary" @click="retry">{{ $t('G2_BTN_RETRY', '重试') }}</button>
-      <button type="button" class="btn" @click="goToLogin">{{ $t('MS_AU_BACK_LOGIN', '返回登录') }}</button>
+      <button type="button" class="btn" @click="goToLogin">{{ $t('G2_AU_BACK_LOGIN', '返回登录') }}</button>
     </div>
     <div v-else class="panel success">
-      <h2>{{ $t('MS_AU_SSO_OK', '认证成功') }}</h2>
+      <h2>{{ $t('G2_AU_SSO_OK', '认证成功') }}</h2>
       <p>{{ $t('CS_AU_ENTERING', '正在进入应用...') }}</p>
     </div>
   </div>
@@ -47,7 +47,7 @@ async function processCallback(): Promise<void> {
   const clientId = params.get('clientId')
   if (!code || !clientId) {
     tokenStore.setStatus('NORMAL')
-    error.value = t('MS_AU_NO_CODE', '未找到授权码或者客户端ID')
+    error.value = t('G2_AU_NO_CODE', '未找到授权码或者客户端ID')
     isLoading.value = false
     return
   }
@@ -61,7 +61,7 @@ async function processCallback(): Promise<void> {
     restoreAfterAuth(router)
   } catch (err) {
     tokenStore.setStatus('NORMAL')
-    error.value = err instanceof Error ? err.message : t('MS_AU_SSO_ERR', '认证处理失败')
+    error.value = err instanceof Error ? err.message : t('G2_AU_SSO_ERR', '认证处理失败')
     isLoading.value = false
   }
 }
