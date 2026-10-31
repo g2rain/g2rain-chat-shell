@@ -192,6 +192,12 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   padding: 10px 16px;
   border-radius: 22px;
   background: #e8f0fe;
+  color: var(--g2-text-primary);
+}
+
+/* 暗色：中性深灰底（对齐常见对话产品，如 DeepSeek rgb(44,44,46)）+ 浅字 */
+:root[data-g2-theme='dark'] .message-row.is-user .message-text {
+  background: #2c2c2e;
 }
 
 .message-row.is-agent .message-bubble {
