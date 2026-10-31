@@ -59,6 +59,14 @@ export interface ModelProfileItem {
   displayName: string
 }
 
+/** Chat 首页展示的租户问题模板。 */
+export interface ChatPromptTemplate {
+  id: number
+  promptText: string
+  sortOrder: number
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
 export interface ChatConversation {
   id?: number
   conversationId: string

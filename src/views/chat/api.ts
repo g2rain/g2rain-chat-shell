@@ -1,6 +1,8 @@
 import { getHttpClient } from '../../runtime/http'
+import type { PageData } from '../../platform/types/api.type'
 import type {
   AgentProfileItem,
+  ChatPromptTemplate,
   ChatConversation,
   ChatMessageRecord,
   ModelProfileItem,
@@ -9,6 +11,18 @@ import type {
 } from './type'
 
 export class ChatApi {
+  /** 查询当前租户启用的问题模板，按配置顺序取前五条。租户标识由服务端从登录上下文注入。 */
+  static async listPromptTemplates(): Promise<ChatPromptTemplate[]> {
+    const http = getHttpClient()
+    const res = await http.client.get<PageData<ChatPromptTemplate>>('/studio/chat_prompt_template/page', {
+      pageNum: 1,
+      pageSize: 5,
+      status: 'ACTIVE',
+      sorts: ['sortOrder,asc', 'id,asc'],
+    })
+    return res.data?.records ?? []
+  }
+
   /** g2rain-agent-studio：ACTIVE 数字员工下拉（id + agentName） */
   static async listAgents(): Promise<AgentProfileItem[]> {
     const http = getHttpClient()
