@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 
-g2rain 官方 Vue 3 Main Shell 模板：Header / Sidebar / Tab / Workspace / Footer、Pinia Workspace 模型、`@g2rain/platform/main` + `@g2rain/http` + `@g2rain/theme` / `@g2rain/ui` 基线接入点，以及 qiankun RuntimeAdapter 扩展位。
+g2rain-chat-shell 是 G2rain（谷雨）开源智能体平台的知识对话主应用，提供对话入口及主应用导航、会话协调和微前端承载能力。它基于 Vue 3、Vite、Pinia 与 qiankun，接入 `@g2rain/platform/main`、`@g2rain/http`、`@g2rain/theme` 和 `@g2rain/ui`。当前准备版本为 `v1.0.0`；镜像发布结果以对应 GitHub Actions 运行记录为准。
 
 本项目由 [g2rain-app-cli](https://github.com/g2rain/g2rain-app-cli) 基于 [g2rain-shell-template](https://github.com/g2rain/g2rain-shell-template) 生成。权威生产参考壳是 [g2rain-main-shell](https://github.com/g2rain/g2rain-main-shell)；跨仓架构契约见中央 [Main Shell 契约](https://github.com/g2rain/g2rain/blob/main/docs/architecture/profiles/frontend-shell/main-shell-contract.md)，appkit 接线细节见其 [Main Shell 接入](https://github.com/g2rain/g2rain-appkit/blob/main/docs/integration/main.md)。
 
@@ -78,6 +78,10 @@ npm run build
 | `npm run dev` | Vite 开发服务器 |
 | `npm run build` | `vue-tsc --noEmit` + `vite build` |
 | `npm run preview` | 预览构建产物 |
+
+## 容器镜像发布
+
+稳定版镜像发布到 `ghcr.io/g2rain/g2rain-chat-shell`。只有推送格式为 `v<major>.<minor>.<patch>`、且所指提交已在 `main` 中并有同名发布说明的标签才会触发构建；详细发布流程、镜像标签和首次公开设置见[部署文档](docs/operations/deployment.md)。
 
 ## 许可证
 
