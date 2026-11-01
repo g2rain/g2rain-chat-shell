@@ -2,8 +2,8 @@
 set -eu
 
 export SERVER_PORT=${SERVER_PORT:-8080}
-# Must match image build VITE_CONTEXT_PATH (e.g. /admin)
-export CONTEXT_PATH=${CONTEXT_PATH:-/admin}
+# Must match the Vite base used by this image.
+export CONTEXT_PATH=${CONTEXT_PATH:-/chat}
 export SSO_BASE_URL=${SSO_BASE_URL:-}
 # 默认匿名接入码（运营公司在接入码管理中创建）；为空表示不开放匿名访问
 export ANONYMOUS_ENTRY_KEY=${ANONYMOUS_ENTRY_KEY:-}
