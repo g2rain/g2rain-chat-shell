@@ -65,6 +65,11 @@ COPY nginx/docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh \
  && chmod +x /docker-entrypoint.sh
 
+# Keep the master PID out of OpenResty's logs directory, which can be
+# unwritable or contain a PID file owned by a different container user.
+RUN sed -i -E 's|^[[:space:]]*pid[[:space:]]+[^;]+;|pid /tmp/nginx.pid;|' /usr/local/openresty/nginx/conf/nginx.conf \
+ && grep -Eq '^[[:space:]]*pid[[:space:]]+/tmp/nginx\.pid;' /usr/local/openresty/nginx/conf/nginx.conf
+
 EXPOSE 8080
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
