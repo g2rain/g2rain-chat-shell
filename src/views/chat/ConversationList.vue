@@ -9,8 +9,8 @@
         <button
           type="button"
           class="icon-btn"
-          title="打开侧栏"
-          aria-label="打开侧栏"
+          :title="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
+          :aria-label="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
           @click="emit('expand')"
         >
           <SidebarIcon />
@@ -19,8 +19,8 @@
           type="button"
           class="icon-btn"
           :disabled="streaming"
-          title="新对话"
-          aria-label="新对话"
+          :title="$t('CS_CHAT_NEW', '新对话')"
+          :aria-label="$t('CS_CHAT_NEW', '新对话')"
           @click="emit('newChat')"
         >
           <ComposeIcon />
@@ -31,12 +31,12 @@
 
     <template v-else>
       <div class="sidebar-header">
-        <img :src="logoHeader" alt="谷雨开源SaaS平台" class="sidebar-logo" />
+        <img :src="logoHeader" :alt="$t('MS_HDR_LOGO', '谷雨开源SaaS平台')" class="sidebar-logo" />
         <button
           type="button"
           class="icon-btn"
-          title="关闭侧栏"
-          aria-label="关闭侧栏"
+          :title="$t('CS_CHAT_CLOSE_SIDEBAR', '关闭侧栏')"
+          :aria-label="$t('CS_CHAT_CLOSE_SIDEBAR', '关闭侧栏')"
           @click="emit('collapse')"
         >
           <SidebarIcon />
@@ -53,7 +53,7 @@
             @click="emit('newChat')"
           >
             <ComposeIcon />
-            <span>新对话</span>
+            <span>{{ $t('CS_CHAT_NEW', '新对话') }}</span>
           </button>
         </div>
 
@@ -65,16 +65,16 @@
               :aria-expanded="recentExpanded"
               @click="recentExpanded = !recentExpanded"
             >
-              <span>最近</span>
+              <span>{{ $t('CS_CHAT_RECENT', '最近') }}</span>
               <ChevronIcon :expanded="recentExpanded" />
             </button>
           </div>
 
           <div v-show="recentExpanded" class="recent-body">
-            <div v-if="loading" class="list-status">加载中…</div>
+            <div v-if="loading" class="list-status">{{ $t('CS_CHAT_LIST_LOADING', '加载中…') }}</div>
             <div v-else-if="conversations.length === 0" class="list-empty">
               <EmptyHistoryIcon />
-              <span>暂无历史对话</span>
+              <span>{{ $t('CS_CHAT_LIST_EMPTY', '暂无历史对话') }}</span>
             </div>
 
             <nav v-else class="list-nav" @scroll="closeMenu">
@@ -95,15 +95,15 @@
                 >
                   <span class="conversation-title">
                     <TypewriterText v-if="item.conversationId === typingId && item.title" :text="item.title" />
-                    <template v-else>{{ item.title || '新对话' }}</template>
+                    <template v-else>{{ item.title || $t('CS_CHAT_NEW', '新对话') }}</template>
                   </span>
                 </button>
                 <div class="more-wrap">
                   <button
                     type="button"
                     class="more-btn"
-                    title="更多"
-                    aria-label="更多"
+                    :title="$t('CS_CHAT_MORE', '更多')"
+                    :aria-label="$t('CS_CHAT_MORE', '更多')"
                     :aria-expanded="openMenuId === item.conversationId"
                     @click.stop="toggleMenu(item.conversationId, $event)"
                   >
@@ -134,7 +134,7 @@
           @click="onCopyId"
         >
           <CopyIcon />
-          <span>复制会话 ID</span>
+          <span>{{ $t('CS_CHAT_COPY_ID', '复制会话 ID') }}</span>
         </button>
         <button
           type="button"
@@ -143,7 +143,7 @@
           @click="onDelete"
         >
           <TrashIcon />
-          <span>删除</span>
+          <span>{{ $t('G2_BTN_DELETE', '删除') }}</span>
         </button>
       </div>
     </Teleport>
@@ -153,6 +153,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { t } from '../../platform/i18n'
 import logoHeader from '@/assets/brand/logo-header.png'
 import SidebarAccount from '../../shell/layout/SidebarAccount.vue'
 import type { ChatConversation } from './type'
@@ -219,9 +220,9 @@ async function onCopyId(): Promise<void> {
   if (!conversationId) return
   try {
     await navigator.clipboard.writeText(conversationId)
-    ElMessage.success('已复制会话 ID')
+    ElMessage.success(t('CS_CHAT_COPY_ID_OK', '已复制会话 ID'))
   } catch {
-    ElMessage.error('复制失败')
+    ElMessage.error(t('CS_CHAT_COPY_FAIL', '复制失败'))
   }
 }
 
@@ -231,14 +232,18 @@ async function onDelete(): Promise<void> {
   closeMenu()
   if (!item) return
 
-  const title = item.title?.trim() || '新对话'
+  const title = item.title?.trim() || t('CS_CHAT_NEW', '新对话')
   try {
-    await ElMessageBox.confirm(`确定删除「${title}」吗？删除后不可恢复。`, '删除会话', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-    })
+    await ElMessageBox.confirm(
+      t('CS_CHAT_DELETE_CONFIRM', { title }, '确定删除「{title}」吗？删除后不可恢复。'),
+      t('CS_CHAT_DELETE_TITLE', '删除会话'),
+      {
+        type: 'warning',
+        confirmButtonText: t('G2_BTN_DELETE', '删除'),
+        cancelButtonText: t('G2_BTN_CANCEL', '取消'),
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
   } catch {
     return
   }

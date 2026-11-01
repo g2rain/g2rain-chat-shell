@@ -10,10 +10,10 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, type WatchStopHandle } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { t } from '../../platform/i18n'
 import { sso } from '../../runtime/auth/sso'
 import { useAccessTokenStore } from '../../platform/stores/token.store'
 import { useMenuStore } from '../../platform/stores/menu.store'
-import { useRuntimeStore } from '../../platform/stores/runtime.store'
 import {
   saveReturnUrl,
   handleRedirectGatewayWhenAuthed,
@@ -22,11 +22,11 @@ import {
 const route = useRoute()
 const router = useRouter()
 const menuStore = useMenuStore()
-const runtimeStore = useRuntimeStore()
-const message = ref('正在跳转...')
+const message = ref(t('CS_REDIR_JUMP', '正在跳转...'))
 
 function menusReady(): boolean {
-  return menuStore.initialized && runtimeStore.definitions.size > 0
+  // 菜单接口失败时仍会 initialized；不再等子应用定义数量，避免深链卡住
+  return menuStore.initialized
 }
 
 async function tryOpenTarget(): Promise<boolean> {
@@ -40,27 +40,25 @@ onMounted(async () => {
   const tokenStore = useAccessTokenStore()
 
   if (!tokenStore.isLogin) {
-    message.value = '正在跳转登录...'
+    message.value = t('CS_REDIR_TO_LOGIN', '正在跳转登录...')
     saveReturnUrl(route.fullPath)
     try {
       await sso.redirectToSSO()
     } catch (e) {
       console.error('[SubAppRedirectGateway] SSO redirect failed:', e)
-      message.value = '跳转登录失败'
+      message.value = t('CS_REDIR_LOGIN_FAIL', '跳转登录失败')
     }
     return
   }
 
-  message.value = '正在打开应用...'
-  if (await tryOpenTarget()) {
-    return
-  }
+  message.value = t('CS_REDIR_OPEN_APP', '正在打开应用...')
 
+  // Only watch (incl. immediate) — avoid onMounted + watch both calling tryOpenTarget.
   let stop: WatchStopHandle | null = null
   stop = watch(
-    () => [menuStore.initialized, runtimeStore.definitions.size] as const,
-    async ([menuReady, defCount]) => {
-      if (!menuReady || defCount <= 0) {
+    () => menuStore.initialized,
+    async (menuReady) => {
+      if (!menuReady) {
         return
       }
       if (await tryOpenTarget()) {

@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build + Docker image for the Main Shell template / generated shell.
-# Scaffolding replaces g2rain-chat-shell in IMAGE default when present in other files;
-# after create-g2rain-app, rename IMAGE to match package name if needed.
+# Build the same GHCR image configuration used by the release workflow.
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 
-IMAGE="g2rain/g2rain-chat-shell"
-TAG="latest"
+IMAGE="${IMAGE:-ghcr.io/g2rain/g2rain-chat-shell}"
+TAG="1.0.0"
 BUILD_MODE="production"
+VCS_REF="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -52,6 +51,8 @@ echo "Mode:    $BUILD_MODE"
 export DOCKER_BUILDKIT=1
 docker build \
   --build-arg "VITE_BUILD_MODE=$BUILD_MODE" \
+  --build-arg "IMAGE_VERSION=$TAG" \
+  --build-arg "VCS_REF=$VCS_REF" \
   -t "$IMAGE:$TAG" \
   .
 

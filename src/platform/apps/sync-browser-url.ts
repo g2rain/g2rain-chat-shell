@@ -1,7 +1,9 @@
 import type { WorkspaceTab } from '../types/workspace'
 import { useRuntimeStore } from '../stores/runtime.store'
-import { getContextPath } from '../../shared/env'
-import { replaceBrowserPathname, wrapActiveRule } from '../../shared/url'
+import { SHELL_PAGE_PATHS } from '../menus/shell-menus'
+import { getContextPath, getPathWithContextPath } from '../../shared/env'
+import { replaceBrowserPathname, setShellParam, wrapActiveRule } from '../../shared/url'
+import { isDeepLinkLeavingGateway } from '../../shared/deep-link-flags'
 
 /**
  * Sync browser address bar to the active Tab (main-shell TabBar semantics).
@@ -9,10 +11,11 @@ import { replaceBrowserPathname, wrapActiveRule } from '../../shared/url'
  */
 export function syncBrowserAddressForTab(tab: WorkspaceTab | undefined | null): void {
   if (!tab) return
+  if (isDeepLinkLeavingGateway()) return
 
   if (tab.kind === 'shell') {
-    const base = getContextPath().replace(/\/$/, '') || ''
-    replaceBrowserPathname(base ? `${base}/` : '/')
+    const path = tab.shellPage ? SHELL_PAGE_PATHS[tab.shellPage] : '/'
+    replaceBrowserPathname(getPathWithContextPath(path))
     return
   }
 
@@ -34,7 +37,9 @@ export function syncBrowserAddressForTab(tab: WorkspaceTab | undefined | null): 
   const rawPath = lastActivePath ?? tab.initialRoute
   if (!rawPath) return
 
-  const pathname = wrapActiveRule(definition.activeRule, rawPath)
+  // 带上 g2shell：刷新或分享后由子应用跳回本壳，而不是默认宿主
+  const shell = getContextPath().replace(/^\//, '') || null
+  const pathname = setShellParam(wrapActiveRule(definition.activeRule, rawPath), shell)
   replaceBrowserPathname(pathname)
   console.info('[syncBrowserAddressForTab] micro-app', {
     tabId: tab.tabId,

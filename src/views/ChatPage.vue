@@ -22,7 +22,13 @@
     <div class="chat-main">
       <!-- 紧凑布局（手机、平板竖屏）：侧栏收进抽屉，顶栏提供入口 -->
       <header v-if="compact" class="mobile-bar">
-        <button type="button" class="bar-btn" title="打开侧栏" aria-label="打开侧栏" @click="drawerOpen = true">
+        <button
+          type="button"
+          class="bar-btn"
+          :title="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
+          :aria-label="$t('CS_CHAT_OPEN_SIDEBAR', '打开侧栏')"
+          @click="drawerOpen = true"
+        >
           <SidebarIcon />
         </button>
         <span class="bar-title">{{ activeTitle || baseTitle }}</span>
@@ -30,8 +36,8 @@
           type="button"
           class="bar-btn"
           :disabled="streaming"
-          title="新对话"
-          aria-label="新对话"
+          :title="$t('CS_CHAT_NEW', '新对话')"
+          :aria-label="$t('CS_CHAT_NEW', '新对话')"
           @click="startNewChat"
         >
           <ComposeIcon />
@@ -40,6 +46,7 @@
       <ChatPanel
         :messages="messages"
         :loading-messages="loadingMessages"
+        v-model:live-expanded="liveExpanded"
         :live-steps="liveSteps"
         :pending-actions="pendingActions"
         :streaming="streaming"
@@ -48,6 +55,7 @@
         :greeting-name="greetingName"
         :agents="agents"
         :models="models"
+        :prompt-templates="promptTemplates"
         v-model:agent-id="selectedAgentId"
         v-model:model="selectedModel"
         @send="sendUserInput"
@@ -61,6 +69,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { t } from '../platform/i18n'
 import { Generator } from '../shared/id'
 import { useSessionStore } from '../platform/stores/session.store'
 import { ChatApi } from './chat/api'
@@ -73,6 +82,7 @@ import type {
   AgentProfileItem,
   ChatConversation,
   ChatMessageItem,
+  ChatPromptTemplate,
   ModelProfileItem,
   PendingTurnActions,
   ResumeAction,
@@ -111,6 +121,8 @@ const loadingMessages = ref(false)
 const streaming = ref(false)
 /** 本轮执行中的步骤；不在执行时为 null */
 const liveSteps = ref<TurnStep[] | null>(null)
+/** 执行中的时间线是否展开；出结果后带到最终回复上，保持展开 */
+const liveExpanded = ref(false)
 const pendingActions = ref<PendingTurnActions | null>(null)
 const lastUserInput = ref<string | null>(null)
 const errorMessage = ref<string | null>(null)
@@ -119,6 +131,7 @@ const selectedAgentId = ref<number | null>(null)
 const selectedModel = ref<string | null>(null)
 const agents = ref<AgentProfileItem[]>([])
 const models = ref<ModelProfileItem[]>([])
+const promptTemplates = ref<ChatPromptTemplate[]>([])
 
 let abortController: AbortController | null = null
 
@@ -150,19 +163,21 @@ async function loadConversations(): Promise<void> {
   try {
     conversations.value = await ChatApi.listConversations()
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '加载会话列表失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_LIST', '加载会话列表失败'))
   } finally {
     loadingConversations.value = false
   }
 }
 
 async function loadComposerOptions(): Promise<void> {
-  const [agentResult, modelResult] = await Promise.allSettled([
+  const [agentResult, modelResult, promptResult] = await Promise.allSettled([
     ChatApi.listAgents(),
     ChatApi.listModels(),
+    ChatApi.listPromptTemplates(),
   ])
   agents.value = agentResult.status === 'fulfilled' ? agentResult.value : []
   models.value = modelResult.status === 'fulfilled' ? modelResult.value : []
+  promptTemplates.value = promptResult.status === 'fulfilled' ? promptResult.value : []
 }
 
 async function selectConversation(conversationId: string): Promise<void> {
@@ -181,7 +196,7 @@ async function loadMessages(conversationId: string): Promise<void> {
     const rows = await ChatApi.listMessages(conversationId)
     messages.value = historyToChatItems(rows)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '加载历史消息失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_HISTORY', '加载历史消息失败'))
     messages.value = []
   } finally {
     loadingMessages.value = false
@@ -201,7 +216,7 @@ async function deleteConversation(conversationId: string): Promise<void> {
   try {
     await ChatApi.deleteConversation(conversationId)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error, '删除会话失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_DELETE', '删除会话失败'))
     return
   }
   conversations.value = conversations.value.filter((item) => item.conversationId !== conversationId)
@@ -258,10 +273,12 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
   streaming.value = true
   clearTurnUi({ clearError: true })
   liveSteps.value = []
+  liveExpanded.value = false
   const startedAt = Date.now()
 
   abortController?.abort()
-  abortController = new AbortController()
+  const controller = new AbortController()
+  abortController = controller
   const traceId = Generator.random()
 
   try {
@@ -291,6 +308,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
             progress: steps.length ? steps : undefined,
             traceId: event.traceId ?? traceId,
             failed: event.status === 'FAILED',
+            progressExpanded: liveExpanded.value,
           })
         }
         pendingActions.value =
@@ -298,14 +316,15 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
             ? { actions: event.actions, suggestions: event.suggestions ?? [] }
             : null
       },
-      abortController.signal,
+      controller.signal,
     )
     touchConversation(activeConversationId.value)
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    // 主动取消（切换会话、新一轮开始）不算失败
+    if (controller.signal.aborted) {
       return
     }
-    errorMessage.value = toErrorMessage(error, '发送失败')
+    errorMessage.value = toErrorMessage(error, t('CS_CHAT_ERR_SEND', '发送失败'))
     if (activeConversationId.value) {
       void loadMessages(activeConversationId.value)
     }

@@ -27,8 +27,13 @@
         </span>
       </li>
       <li v-if="traceId" class="timeline__trace">
-        <button type="button" class="timeline__copy" title="复制追踪号" @click="copyTrace">
-          追踪号 {{ traceId }}
+        <button
+          type="button"
+          class="timeline__copy"
+          :title="$t('CS_CHAT_COPY_TRACE', '复制完整追踪号')"
+          @click="copyTrace"
+        >
+          {{ $t('CS_CHAT_TRACE', '追踪号') }} {{ traceId }}
           <CheckIcon v-if="copied" />
           <CopyIcon v-else />
         </button>
@@ -39,6 +44,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { t } from '../../platform/i18n'
 import type { TurnStep } from './type'
 import { formatDuration, isFailed } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
@@ -52,7 +58,11 @@ const props = defineProps<{
   elapsedMs?: number
   /** 本轮追踪号；展开后底部展示，可复制完整值 */
   traceId?: string
+  /** 初始是否展开 */
+  defaultExpanded?: boolean
 }>()
+
+const emit = defineEmits<{ 'update:expanded': [expanded: boolean] }>()
 
 const copied = ref(false)
 
@@ -67,7 +77,8 @@ async function copyTrace(): Promise<void> {
   setTimeout(() => (copied.value = false), 1500)
 }
 
-const expanded = ref(false)
+const expanded = ref(props.defaultExpanded ?? false)
+watch(expanded, (value) => emit('update:expanded', value))
 const failed = computed(() => isFailed(props.steps))
 
 /** 按 parentStepId 深度优先展开为带缩进的行，保持开始顺序 */
@@ -90,7 +101,11 @@ const rows = computed(() => {
 
 const current = computed(() => [...props.steps].reverse().find((step) => step.status === 'RUNNING'))
 
-const headline = computed(() => (props.running ? (current.value?.title ?? '正在处理') : '执行过程'))
+const headline = computed(() =>
+  props.running
+    ? (current.value?.title ?? t('CS_CHAT_PROCESSING', '正在处理'))
+    : t('G2_LBL_PROGRESS', '执行过程'),
+)
 
 /** 执行中本地计时，结束后用本轮耗时 */
 const now = ref(Date.now())

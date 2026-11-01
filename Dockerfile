@@ -11,9 +11,6 @@ RUN --mount=type=cache,target=/root/.npm \
 
 COPY . .
 
-# Drop any accidentally copied keys from build context before vite (defense in depth)
-RUN rm -rf lua/keys/*.pem lua/keys/*.der lua/keys/iam-key-id.txt 2>/dev/null || true
-
 ENV VITE_BUILD_MODE=$VITE_BUILD_MODE
 RUN if [ -n "$VITE_BUILD_MODE" ]; then \
       npx vite build --mode "$VITE_BUILD_MODE"; \
@@ -25,6 +22,14 @@ RUN if [ -n "$VITE_BUILD_MODE" ]; then \
 # Stage 2: OpenResty + luaossl
 # ------------------------------------------------------------
 FROM openresty/openresty:alpine
+
+ARG IMAGE_VERSION=1.0.0
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.source="https://github.com/g2rain/g2rain-chat-shell" \
+      org.opencontainers.image.url="https://github.com/g2rain/g2rain-chat-shell" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 RUN set -eux; \
     sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories; \
@@ -52,7 +57,6 @@ RUN set -eux; \
 
 COPY --from=builder /app/dist /usr/local/openresty/nginx/html
 COPY lua/sign.lua lua/sign_api.lua lua/config.lua /usr/local/openresty/nginx/lua/
-COPY lua/keys/README.md /usr/local/openresty/nginx/lua/keys/README.md
 RUN mkdir -p /usr/local/openresty/nginx/lua/keys
 
 COPY nginx/default.conf.template /etc/nginx/conf.d/default.conf.template

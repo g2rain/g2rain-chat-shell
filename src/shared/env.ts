@@ -98,8 +98,11 @@ export function isAuthPublicPath(pathname: string): boolean {
   return pathname.endsWith('/sso_callback') || pathname.endsWith('/logout')
 }
 
-/** 国际化文案包 tags（逗号分隔，与 i18n_message.tag 一致） */
+/** 国际化文案包 tags：共享 + MAIN_SHELL（页脚/主题等）+ CHAT_SHELL */
 export function getI18nTags(): string {
-  const raw = getEnvVar('VITE_I18N_TAGS', import.meta.env.VITE_I18N_TAGS || 'G2RAIN_SHARED')
-  return raw.trim() || 'G2RAIN_SHARED'
+  const raw = getEnvVar(
+    'VITE_I18N_TAGS',
+    import.meta.env.VITE_I18N_TAGS || 'G2RAIN_SHARED,MAIN_SHELL,CHAT_SHELL',
+  )
+  return raw.trim() || 'G2RAIN_SHARED,MAIN_SHELL,CHAT_SHELL'
 }

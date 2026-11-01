@@ -1,6 +1,6 @@
 <template>
   <div class="message-list">
-    <div v-if="loading" class="message-status">加载历史消息…</div>
+    <div v-if="loading" class="message-status">{{ $t('CS_CHAT_MSG_LOADING', '加载历史消息…') }}</div>
 
     <template v-else>
       <div
@@ -16,6 +16,7 @@
               :steps="message.progress"
               :elapsed-ms="message.elapsedMs"
               :trace-id="message.traceId"
+              :default-expanded="message.progressExpanded"
             />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
@@ -27,25 +28,25 @@
               >
                 {{ formatMessageTime(message.createdAtMs) }}
                 <template v-if="message.role !== 'USER' && message.elapsedMs != null">
-                  · 耗时 {{ formatDuration(message.elapsedMs) }}
+                  · {{ $t('G2_FIELD_DURATION', '耗时') }} {{ formatDuration(message.elapsedMs) }}
                 </template>
                 <template v-if="message.failed && message.traceId">
                   ·
                   <button
                     type="button"
                     class="trace-btn"
-                    :title="copiedTraceId === message.id ? '已复制' : '复制完整追踪号'"
+                    :title="copiedTraceId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('CS_CHAT_COPY_TRACE', '复制完整追踪号')"
                     @click="copyTrace(message)"
                   >
-                    追踪号 {{ message.traceId.slice(-6) }}
+                    {{ $t('CS_CHAT_TRACE', '追踪号') }} {{ message.traceId.slice(-6) }}
                   </button>
                 </template>
               </span>
               <button
                 type="button"
                 class="copy-btn"
-                :title="copiedId === message.id ? '已复制' : '复制'"
-                :aria-label="copiedId === message.id ? '已复制' : '复制'"
+                :title="copiedId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('G2_BTN_COPY', '复制')"
+                :aria-label="copiedId === message.id ? $t('G2_MSG_COPIED', '已复制') : $t('G2_BTN_COPY', '复制')"
                 @click="copyMessage(message)"
               >
                 <CheckIcon v-if="copiedId === message.id" />
@@ -59,7 +60,12 @@
       <div v-if="liveSteps" class="message-row is-agent">
         <div class="message-row__inner">
           <div class="message-bubble">
-            <ProgressTimeline :steps="liveSteps" running />
+            <ProgressTimeline
+              :steps="liveSteps"
+              running
+              :default-expanded="liveExpanded"
+              @update:expanded="liveExpanded = $event"
+            />
           </div>
         </div>
       </div>
@@ -83,6 +89,9 @@ defineProps<{
   /** 本轮执行中的步骤；不在执行时为 null */
   liveSteps: TurnStep[] | null
 }>()
+
+/** 执行中的时间线是否展开；出结果时由页面带到最终回复上 */
+const liveExpanded = defineModel<boolean>('liveExpanded', { default: false })
 
 /** AI 回复统一按 Markdown 渲染：不信任原始 HTML，只认 ``` 代码块 */
 const markdown = new MarkdownIt({ html: false, breaks: true, linkify: true }).disable('code')
@@ -183,6 +192,12 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   padding: 10px 16px;
   border-radius: 22px;
   background: #e8f0fe;
+  color: var(--g2-text-primary);
+}
+
+/* 暗色：中性深灰底（对齐常见对话产品，如 DeepSeek rgb(44,44,46)）+ 浅字 */
+:root[data-g2-theme='dark'] .message-row.is-user .message-text {
+  background: #2c2c2e;
 }
 
 .message-row.is-agent .message-bubble {

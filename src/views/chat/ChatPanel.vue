@@ -3,12 +3,24 @@
     <div v-if="errorMessage" class="chat-error">
       <span>{{ errorMessage }}</span>
       <button v-if="canRetry" type="button" class="retry-btn" @click="emit('retry')">
-        重试
+        {{ $t('G2_BTN_RETRY', '重试') }}
       </button>
     </div>
 
     <div v-if="isEmpty" class="empty-state">
-      <h1 class="empty-greeting">我能帮你什么忙吗{{ greetingSuffix }}</h1>
+      <h1 class="empty-greeting">{{ $t('CS_CHAT_GREETING', '我能帮你什么忙吗') }}{{ greetingSuffix }}</h1>
+      <div v-if="promptTemplates.length" class="prompt-templates" :aria-label="$t('CS_CHAT_PROMPT_TEMPLATES', '试试这样提问')">
+        <button
+          v-for="item in promptTemplates"
+          :key="item.id"
+          type="button"
+          class="prompt-template"
+          :disabled="streaming"
+          @click="emit('send', item.promptText)"
+        >
+          {{ item.promptText }}
+        </button>
+      </div>
       <ChatInput
         v-bind="composerBind"
         v-model:agent-id="agentId"
@@ -24,6 +36,7 @@
         <MessageList
           :messages="messages"
           :loading="loadingMessages"
+          v-model:live-expanded="liveExpanded"
           :live-steps="liveSteps"
         />
         <div class="scroll-spacer" aria-hidden="true" />
@@ -34,8 +47,8 @@
           v-show="showJumpBottom"
           type="button"
           class="jump-bottom"
-          title="回到底部"
-          aria-label="回到底部"
+          :title="$t('CS_CHAT_JUMP_BOTTOM', '回到底部')"
+          :aria-label="$t('CS_CHAT_JUMP_BOTTOM', '回到底部')"
           @click="scrollToBottom"
         >
           <ScrollDownIcon />
@@ -54,8 +67,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { t } from '../../platform/i18n'
 import type {
   AgentProfileItem,
+  ChatPromptTemplate,
   ChatMessageItem,
   ModelProfileItem,
   PendingTurnActions,
@@ -78,7 +93,11 @@ const props = defineProps<{
   greetingName?: string | null
   agents: AgentProfileItem[]
   models: ModelProfileItem[]
+  promptTemplates: ChatPromptTemplate[]
 }>()
+
+/** 执行中的时间线是否展开；透传给消息列表 */
+const liveExpanded = defineModel<boolean>('liveExpanded', { default: false })
 
 const agentId = defineModel<number | null>('agentId', { required: true })
 const model = defineModel<string | null>('model', { required: true })
@@ -98,7 +117,9 @@ const isEmpty = computed(
 
 const greetingSuffix = computed(() => {
   const name = props.greetingName?.trim()
-  return name ? `，${name}？` : '？'
+  return name
+    ? t('CS_CHAT_GREETING_NAME', { name }, '，{name}？')
+    : t('CS_CHAT_GREETING_MARK', '？')
 })
 
 const composerBind = computed(() => ({
@@ -177,6 +198,45 @@ watch(
   line-height: 1.35;
   color: var(--g2-text-primary);
   text-align: center;
+}
+
+.prompt-templates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.prompt-template {
+  max-width: min(100%, 560px);
+  padding: 10px 14px;
+  border: 1px solid var(--g2-border-color, #dcdfe6);
+  border-radius: 12px;
+  background: var(--g2-bg-container, #fff);
+  color: var(--g2-text-primary);
+  font: inherit;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.prompt-template:hover:not(:disabled),
+.prompt-template:focus-visible {
+  border-color: var(--g2-color-primary, #409eff);
+  background: var(--g2-bg-muted, #f5f7fa);
+  color: var(--g2-text-primary, #303133);
+}
+
+.prompt-template:focus-visible {
+  outline: 2px solid var(--g2-color-primary, #409eff);
+  outline-offset: 2px;
+}
+
+.prompt-template:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .chat-scroll {

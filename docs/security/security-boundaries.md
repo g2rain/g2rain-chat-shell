@@ -28,5 +28,5 @@
 
 - 已登录时 Header 展示 `/basis/authority/user` 非敏感摘要；未登录跳转 SSO。
 - Token 可持久化于 `localStorage`（`g2rain-shell-token:${applicationCode}`），按 applicationCode 命名空间，避免同 origin 多独立 Shell 互相覆盖；见偏差 TPL-007。
-- Application-DPoP 密钥目录 `lua/keys/` 已 gitignore；用 `scripts/generate-sign-keys.*` 本地生成。
+- Application-DPoP 密钥目录 `lua/keys/` 已被 Docker 构建上下文排除；运行时以只读挂载注入。当前仓库仍跟踪该目录中的密钥命名文件，发布前必须由维护者确认它们均为可公开的开发样例；否则应立即吊销并在单独的安全修复中从 Git 历史与工作树移除，不能仅依赖 `.gitignore`。
 - `REQUEST_TOKEN` 与 `TOKEN_INVALID` 已接；同页消息可含 client 浅拷贝，见偏差 TPL-009。

@@ -59,6 +59,14 @@ export interface ModelProfileItem {
   displayName: string
 }
 
+/** Chat 首页展示的租户问题模板。 */
+export interface ChatPromptTemplate {
+  id: number
+  promptText: string
+  sortOrder: number
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
 export interface ChatConversation {
   id?: number
   conversationId: string
@@ -95,6 +103,8 @@ export interface ChatMessageItem {
   traceId?: string
   /** 本轮是否失败 */
   failed?: boolean
+  /** 执行过程是否展开；执行中展开过，出结果后保持展开 */
+  progressExpanded?: boolean
 }
 
 export interface PendingTurnActions {
