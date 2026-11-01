@@ -2,7 +2,7 @@ schemaVersion: 1
 name: g2rain-chat-shell
 repository: g2rain/g2rain-chat-shell
 family: frontend-shell
-role: G2rain Main Shell 主应用（由 create-g2rain-app shell 生成）
+role: G2rain（谷雨）开源智能体平台的知识对话 Main Shell 主应用（由 create-g2rain-app shell 生成）
 license: Apache-2.0
 architecture:
   centralRepository: g2rain/g2rain
@@ -84,6 +84,10 @@ documentation:
   platformMainAdoption: docs/development/platform-main-adoption.md
   uiThemeAdoption: docs/development/ui-theme-adoption.md
   localDevelopment: docs/development/local-development.md
+  releases: docs/releases/README.md
+release:
+  version: 1.0.0
+  notes: docs/releases/v1.0.0.md
 aiCoding:
   activeRequirement: null
   requirementTemplate: docs/requirements/README.md

@@ -15,9 +15,26 @@ npm run build
 构建依赖 npm Registry 上的 `@g2rain/*@1.0.0`；镜像内执行 `npm ci` / `npm install`，不再拷贝本地 kits 制品。
 
 ```bash
-./build.sh
-# 等价：docker build -t g2rain/<project>:latest .
+./build.sh --tag 1.0.0
+# 等价：docker build -t ghcr.io/g2rain/g2rain-chat-shell:1.0.0 .
 ```
+
+### GitHub Container Registry（GHCR）发布
+
+镜像地址为 `ghcr.io/g2rain/g2rain-chat-shell:<tag>`。本地 `build.sh` 与 CI 都使用根目录 `Dockerfile`；镜像运行在 OpenResty 上，入口为 `/docker-entrypoint.sh`，监听 `8080`，并写入 OCI 源仓库、版本、提交和许可证元数据。构建上下文排除 `.env*`（保留可提交的 `.env.example`）和整个 `lua/keys/`，密钥只能在运行时挂载。
+
+工作流位于 `.github/workflows/image.yml`。它只在推送严格格式的稳定版标签（如 `v1.0.0`）时运行，不响应普通分支推送，也没有手动运行入口。工作流校验标签格式、标签提交属于 `main` 历史、以及 `docs/releases/v1.0.0.md` 存在，然后执行 `npm ci` 和 `npm run build`。本项目没有独立测试脚本，因此完整可用构建即为当前自动验证范围。
+
+构建成功后，工作流使用 GitHub 自动提供的 `GITHUB_TOKEN` 推送 `1.0.0` 和 `sha-<完整提交 SHA>`；不会创建 GitHub Release、部署服务或更新 `latest`。权限仅为 `contents: read` 和 `packages: write`。仓库/组织仍须允许 Actions 创建和写入该容器包；若已有包，也须授予本仓库 Actions 写权限。
+
+现有分支流程为 `feature/* → develop → main`。先把发布改动和 `docs/releases/v<版本>.md` 按该流程合入 `main`，在经过验证的 `main` 提交上创建并推送标签：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+首次成功推送后，如需允许匿名拉取，请在 GitHub 仓库右侧 **Packages → g2rain-chat-shell** 打开包页面，进入 **Package settings → Change visibility → Public**，输入包名确认。此设置对同一包的后续版本持续生效，通常只需一次。若组织策略禁用该操作，请联系组织管理员授予权限或代为设置。公开镜像可被任何人拉取，绝不能包含密钥、Token 或私有数据。
 
 产物镜像需在 `g2rain-deploy` 的 `services.conf` / Compose 中登记后，由 `./update.sh <service>` 拉取构建并启动。入口路径示例：`/admin/`。
 

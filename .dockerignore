@@ -6,6 +6,7 @@ dist
 *.log
 .env.local
 .env.*.local
-lua/keys/*.pem
-lua/keys/*.der
-lua/keys/iam-key-id.txt
+.env
+.env.*
+!.env.example
+lua/keys/
