@@ -21,7 +21,7 @@ npm run build
 
 ### GitHub Container Registry（GHCR）发布
 
-镜像地址为 `ghcr.io/g2rain/g2rain-chat-shell:<tag>`。本地 `build.sh` 与 CI 都使用根目录 `Dockerfile`；镜像运行在 OpenResty 上，入口为 `/docker-entrypoint.sh`，监听 `8080`，并写入 OCI 源仓库、版本、提交和许可证元数据。构建上下文排除 `.env*`（保留可提交的 `.env.example`）和整个 `lua/keys/`，密钥只能在运行时挂载。
+镜像地址为 `ghcr.io/g2rain/g2rain-chat-shell:<tag>`。本地 `build.sh` 与 CI 都使用根目录 `Dockerfile`；镜像运行在 OpenResty 上，入口为 `/docker-entrypoint.sh`，监听 `8080`，并写入 OCI 源仓库、版本、提交和许可证元数据。与 main-shell 一样，构建上下文包含已跟踪的 `.env.production`，供 Vite 读取 `/chat` 等构建配置；其中 SSO 地址和匿名接入码仅为运行时占位符，实际值由容器环境注入。其他 `.env*` 本地配置和整个 `lua/keys/` 仍被排除。
 
 工作流位于 `.github/workflows/image.yml`。它只在推送严格格式的稳定版标签（如 `v1.0.0`）时运行，不响应普通分支推送，也没有手动运行入口。工作流校验标签格式、标签提交属于 `main` 历史、以及 `docs/releases/v1.0.0.md` 存在，然后执行 `npm ci` 和 `npm run build`。本项目没有独立测试脚本，因此完整可用构建即为当前自动验证范围。
 

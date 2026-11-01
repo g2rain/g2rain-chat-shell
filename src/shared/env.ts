@@ -47,7 +47,7 @@ export async function awaitRuntimeEnvConfig(): Promise<void> {
 }
 
 export function getContextPath(): string {
-  const raw = getEnvVar('VITE_CONTEXT_PATH', import.meta.env.VITE_CONTEXT_PATH || '/admin')
+  const raw = getEnvVar('VITE_CONTEXT_PATH', import.meta.env.VITE_CONTEXT_PATH || '/chat')
   return raw.endsWith('/') ? raw.slice(0, -1) || '/' : raw
 }
 

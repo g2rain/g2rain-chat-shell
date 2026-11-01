@@ -1,7 +1,6 @@
 import type { Plugin } from 'vite'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { loadEnv } from 'vite'
 
 const APP_CONTEXT_PATH_PLACEHOLDER = '__G2RAIN_APP_CONTEXT_PATH__'
 
@@ -24,14 +23,14 @@ function normalizeContextPathForUrl(raw: string | undefined): string {
  * 并向 index.html 注入 Context Path（与 main-shell 同款）。
  */
 export function envConfigPlugin(): Plugin {
-  let env: Record<string, string> = {}
+  let base = '/chat/'
 
-  const getContextPathForUrl = () => normalizeContextPathForUrl(env.VITE_CONTEXT_PATH)
+  const getContextPathForUrl = () => normalizeContextPathForUrl(base)
 
   return {
     name: 'vite-plugin-env-config',
     configResolved(config) {
-      env = loadEnv(config.mode, config.envDir || process.cwd(), '')
+      base = config.base
     },
     transformIndexHtml(html) {
       return html.split(APP_CONTEXT_PATH_PLACEHOLDER).join(getContextPathForUrl())
@@ -49,7 +48,7 @@ window._env_ = {
 `
       writeFileSync(resolve(outDir, 'env-config.js'), configContent, 'utf-8')
       console.log(
-        `env-config.js generated; app context path: ${contextPathForUrl} (from VITE_CONTEXT_PATH)`,
+        `env-config.js generated; app context path: ${contextPathForUrl} (from Vite base)`,
       )
     },
   }
