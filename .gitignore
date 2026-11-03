@@ -22,3 +22,6 @@ yarn-error.log
 *.json.gzip
 *.txt
 doc
+
+# Do not commit private keys; generate locally via scripts/generate-sign-keys.*
+lua/keys/private-key.*
