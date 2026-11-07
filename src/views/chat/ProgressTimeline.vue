@@ -6,9 +6,24 @@
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      <span class="timeline__arrow" :class="{ 'is-open': expanded }">▸</span>
-      <span class="timeline__title" :class="{ shimmer: running }">{{ headline }}</span>
+      <span class="timeline__state" aria-hidden="true">
+        <svg v-if="running" class="timeline__dots" width="16" height="16" viewBox="0 0 16 16">
+          <circle cx="3" cy="8" r="1.6" fill="currentColor" />
+          <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+          <circle cx="13" cy="8" r="1.6" fill="currentColor" />
+        </svg>
+        <svg v-else-if="failed" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5" />
+          <path d="M8 4.75v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="8" cy="11.25" r="0.9" fill="currentColor" />
+        </svg>
+        <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2.75 4h1.5M2.75 8h1.5M2.75 12h1.5M6.75 4h6.5M6.75 8h6.5M6.75 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </span>
+      <span class="timeline__title">{{ headline }}</span>
       <span v-if="durationText" class="timeline__duration">· {{ durationText }}</span>
+      <ChevronIcon class="timeline__chevron" :expanded="expanded" />
     </button>
 
     <ul v-if="expanded" class="timeline__rows">
@@ -49,6 +64,7 @@ import type { TurnStep } from './type'
 import { formatDuration, isFailed } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
+import ChevronIcon from './icons/ChevronIcon.vue'
 
 const props = defineProps<{
   steps: TurnStep[]
@@ -152,7 +168,7 @@ function iconOf(step: TurnStep): string {
 
 .timeline__header {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   padding: 2px 0;
   border: none;
@@ -170,13 +186,42 @@ function iconOf(step: TurnStep): string {
   color: var(--g2-color-danger, #d93025);
 }
 
-.timeline__arrow {
-  display: inline-block;
-  transition: transform 0.15s ease;
+/* 左侧状态图标：执行中三点波浪，完成为步骤图标，失败为感叹号；颜色随文字，适配亮暗主题 */
+.timeline__state {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
-.timeline__arrow.is-open {
-  transform: rotate(90deg);
+.timeline__dots circle {
+  opacity: 0.25;
+  animation: timeline-dot 1.2s ease-in-out infinite;
+}
+
+.timeline__dots circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.timeline__dots circle:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes timeline-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-1.5px);
+  }
+}
+
+.timeline__chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .timeline__duration,
@@ -185,10 +230,24 @@ function iconOf(step: TurnStep): string {
 }
 
 .timeline__rows {
-  margin: 4px 0 0;
+  position: relative;
+  margin: 4px 0 0 7px;
   padding: 0 0 0 14px;
   list-style: none;
   border-left: 1px solid var(--g2-border-color, #e5e5e5);
+}
+
+/* 竖线起点的小圆点，比正文淡 */
+.timeline__rows::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--g2-text-secondary, #8e8e8e);
+  opacity: 0.6;
 }
 
 .timeline__row {
@@ -256,36 +315,10 @@ function iconOf(step: TurnStep): string {
   height: 14px;
 }
 
-/* 执行中标题流光：渐变高光从左向右扫过 */
-.shimmer {
-  color: transparent;
-  background: linear-gradient(
-      90deg,
-      var(--g2-text-secondary, #8e8e8e) 0%,
-      var(--g2-text-secondary, #8e8e8e) 40%,
-      var(--g2-text-primary, #1f1f1f) 50%,
-      var(--g2-text-secondary, #8e8e8e) 60%,
-      var(--g2-text-secondary, #8e8e8e) 100%
-    )
-    0 0 / 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: timeline-shimmer 2s linear infinite;
-}
-
-@keyframes timeline-shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .shimmer {
+  .timeline__dots circle {
     animation: none;
-    color: var(--g2-text-secondary, #8e8e8e);
+    opacity: 0.6;
   }
 }
 

@@ -289,14 +289,19 @@ watch(draft, () => {
   margin-bottom: 8px;
 }
 
+/* 单行（34px 高）为胶囊；建议文字来自模型、长短不可控，换行后为圆角矩形并左对齐，不截断 */
 .suggestion-btn,
 .action-btn {
+  max-width: 100%;
   border: 1px solid var(--g2-border-color);
-  border-radius: 999px;
+  border-radius: 17px;
   background: var(--g2-bg-container);
   color: var(--g2-text-primary);
   padding: 6px 14px;
   font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
