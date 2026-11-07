@@ -39,10 +39,10 @@
           v-model:live-expanded="liveExpanded"
           :live-steps="liveSteps"
         />
-        <div class="scroll-spacer" aria-hidden="true" />
+        <div class="scroll-spacer" :style="spacerStyle" aria-hidden="true" />
       </div>
 
-      <div class="composer-dock">
+      <div ref="dockRef" class="composer-dock">
         <button
           v-show="showJumpBottom"
           type="button"
@@ -81,6 +81,9 @@ import ChatInput from './ChatInput.vue'
 import MessageList from './MessageList.vue'
 import ScrollDownIcon from './icons/ScrollDownIcon.vue'
 
+/** 输入区上沿与最后一条消息之间的间距 */
+const SPACER_GAP = 16
+
 const props = defineProps<{
   messages: ChatMessageItem[]
   loadingMessages: boolean
@@ -109,7 +112,16 @@ const emit = defineEmits<{
 }>()
 
 const scrollRef = ref<HTMLElement | null>(null)
+const dockRef = ref<HTMLElement | null>(null)
 const showJumpBottom = ref(false)
+
+/** 浮动输入区的实际高度；未测得前为 null，留白用样式里的默认值 */
+const dockHeight = ref<number | null>(null)
+
+/** 消息列表底部留白跟随输入区高度，挂起动作、多行输入撑高输入区时最后一条消息不被盖住 */
+const spacerStyle = computed(() =>
+  dockHeight.value === null ? undefined : { height: `${dockHeight.value + SPACER_GAP}px` },
+)
 
 const isEmpty = computed(
   () => !props.loadingMessages && props.messages.length === 0 && !props.liveSteps,
@@ -150,6 +162,25 @@ async function scrollToBottom(): Promise<void> {
   el.scrollTop = el.scrollHeight
   showJumpBottom.value = false
 }
+
+/**
+ * 监听输入区高度；原本停在底部时，高度变化后重新滚到底。
+ * 输入区随空态切换重新挂载，按元素重新监听。
+ */
+watch(dockRef, (el, _, onCleanup) => {
+  if (!el) {
+    dockHeight.value = null
+    return
+  }
+  const observer = new ResizeObserver(() => {
+    const scroller = scrollRef.value
+    const stick = !!scroller && isNearBottom(scroller)
+    dockHeight.value = el.offsetHeight
+    if (stick) void scrollToBottom()
+  })
+  observer.observe(el)
+  onCleanup(() => observer.disconnect())
+})
 
 watch(
   () => [props.messages.length, props.liveSteps?.length, props.loadingMessages, isEmpty.value] as const,
@@ -246,6 +277,7 @@ watch(
 }
 
 .scroll-spacer {
+  /* 测得输入区高度前的默认留白 */
   height: 160px;
 }
 
