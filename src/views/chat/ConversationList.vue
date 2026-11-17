@@ -1,7 +1,8 @@
 <template>
+  <!-- 处理消息期间整个侧栏锁定（含「…」与账户区），右侧聊天区不受影响 -->
   <aside
     class="conversation-list"
-    :class="{ collapsed, 'is-drawer': drawer, 'is-open': drawer && open }"
+    :class="{ collapsed, 'is-drawer': drawer, 'is-open': drawer && open, 'is-locked': streaming }"
     :aria-hidden="drawer && !open"
   >
     <template v-if="collapsed">
@@ -266,6 +267,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.conversation-list.is-locked {
+  pointer-events: none;
+}
+
 .conversation-list {
   display: flex;
   flex-direction: column;
