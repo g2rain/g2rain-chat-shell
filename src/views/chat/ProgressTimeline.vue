@@ -282,7 +282,9 @@ function iconOf(step: TurnStep): string {
   color: inherit;
 }
 
+/* 标题不让位给说明：说明过长时由说明截断，标题不折行 */
 .timeline__step {
+  flex-shrink: 0;
   color: var(--g2-text-primary, #1f1f1f);
 }
 
