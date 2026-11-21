@@ -19,7 +19,12 @@
               :default-expanded="message.progressExpanded"
             />
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
-            <div v-else class="message-text markdown" v-html="renderMarkdown(message.content)" />
+            <template v-else>
+              <div class="message-text markdown" v-html="renderMarkdown(bodyOf(message.content))" />
+              <div v-for="(notice, index) in noticesOf(message.content)" :key="index" class="message-notice">
+                {{ notice }}
+              </div>
+            </template>
             <div class="message-actions">
               <span
                 v-if="message.createdAtMs"
@@ -100,6 +105,23 @@ markdown.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   tokens[idx].attrSet('target', '_blank')
   tokens[idx].attrSet('rel', 'noopener noreferrer')
   return self.renderToken(tokens, idx, options)
+}
+
+/** 警告行标记：运行时在确认内容里以此开头的行是附加检查给出的警告，单独醒目展示 */
+const NOTICE_MARK = '⚠'
+
+function isNotice(line: string): boolean {
+  return line.trimStart().startsWith(NOTICE_MARK)
+}
+
+/** 回复正文：去掉警告行 */
+function bodyOf(content: string | null | undefined): string {
+  return (content ?? '').split('\n').filter((line) => !isNotice(line)).join('\n')
+}
+
+/** 回复中的警告行 */
+function noticesOf(content: string | null | undefined): string[] {
+  return (content ?? '').split('\n').filter(isNotice).map((line) => line.trim())
 }
 
 function renderMarkdown(content: string | null | undefined): string {
@@ -222,6 +244,16 @@ async function copyMessage(message: ChatMessageItem): Promise<void> {
   font-size: 16px;
   line-height: 1.7;
   color: var(--g2-text-primary);
+}
+
+.message-notice {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--g2-color-warning, #f29900);
+  border-radius: 4px;
+  background: var(--g2-color-warning-bg, #fef7e0);
+  color: var(--g2-color-warning-text, #8a5300);
+  white-space: pre-wrap;
 }
 
 /* Markdown 内容由 v-html 注入，需 :deep 穿透 scoped */

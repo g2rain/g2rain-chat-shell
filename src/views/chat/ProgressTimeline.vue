@@ -155,6 +155,7 @@ const durationText = computed(() => {
 function iconOf(step: TurnStep): string {
   if (step.status === 'FAILED') return '✗'
   if (step.status === 'DONE') return '✓'
+  if (step.status === 'WARN') return '⚠'
   return '•'
 }
 </script>
@@ -271,6 +272,14 @@ function iconOf(step: TurnStep): string {
 
 .timeline__row.is-failed {
   color: var(--g2-color-danger, #d93025);
+}
+
+.timeline__row.is-warn {
+  color: var(--g2-color-warning, #b06000);
+}
+
+.timeline__row.is-warn .timeline__step {
+  color: inherit;
 }
 
 .timeline__step {

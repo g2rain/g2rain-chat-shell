@@ -2,7 +2,8 @@ export type TurnStatus = 'DONE' | 'WAITING' | 'FAILED' | 'CANCELLED'
 export type ResumeAction = 'REPLY' | 'CONFIRM' | 'REJECT' | 'CANCEL'
 
 export type StepStage = 'ROUTE' | 'PLAN' | 'NODE' | 'ROUND' | 'MODEL' | 'TOOL' | 'VERIFY'
-export type StepStatus = 'RUNNING' | 'DONE' | 'FAILED'
+/** WARN：已完成，但附带须让用户知道的警告（detail 为警告说明） */
+export type StepStatus = 'RUNNING' | 'DONE' | 'WARN' | 'FAILED'
 
 /** 执行步骤；同一步骤的开始与结束共用 stepId，按 parentStepId 组成层级 */
 export interface TurnStep {
