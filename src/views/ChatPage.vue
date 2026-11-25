@@ -309,6 +309,7 @@ async function submitTurn(req: TurnRequest, optimisticUserText?: string): Promis
             traceId: event.traceId ?? traceId,
             failed: event.status === 'FAILED',
             progressExpanded: liveExpanded.value,
+            attachments: event.attachments,
           })
         }
         pendingActions.value =
@@ -366,6 +367,12 @@ async function retryLast(): Promise<void> {
 }
 
 onMounted(() => {
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('replyAttachmentDemo')) {
+    activeNavKey.value = 'new'
+    void import('./chat/attachment-demo').then(({ attachmentDemoMessage }) => {
+      messages.value = [attachmentDemoMessage]
+    })
+  }
   void loadConversations()
   void loadComposerOptions()
 })

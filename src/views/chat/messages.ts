@@ -16,6 +16,7 @@ export function historyToChatItems(rows: ChatMessageRecord[]): ChatMessageItem[]
       createdAtMs: row.createdAtMs,
       elapsedMs: row.elapsedMs ?? undefined,
       progress: row.progress?.length ? row.progress : undefined,
+      attachments: row.attachments,
       traceId: row.traceId,
       failed: isFailed(row.progress),
     }))

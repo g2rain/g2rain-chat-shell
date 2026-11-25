@@ -2,6 +2,7 @@ export type TurnStatus = 'DONE' | 'WAITING' | 'FAILED' | 'CANCELLED'
 export type ResumeAction = 'REPLY' | 'CONFIRM' | 'REJECT' | 'CANCEL'
 
 export type StepStage = 'ROUTE' | 'PLAN' | 'NODE' | 'ROUND' | 'MODEL' | 'TOOL' | 'VERIFY'
+export interface ReplyAttachment { type: string; title: string; content: string }
 /** WARN：已完成，但附带须让用户知道的警告（detail 为警告说明） */
 export type StepStatus = 'RUNNING' | 'DONE' | 'WARN' | 'FAILED'
 
@@ -35,6 +36,7 @@ export interface TurnEvent {
   elapsedMs?: number
   /** 失败时的业务错误码；仅 RESULT 且 FAILED */
   errorCode?: string
+  attachments?: ReplyAttachment[]
 }
 
 export interface TurnRequest {
@@ -89,6 +91,7 @@ export interface ChatMessageRecord {
   traceId?: string
   /** 本轮执行步骤；仅最终回复 */
   progress?: TurnStep[]
+  attachments?: ReplyAttachment[]
 }
 
 export interface ChatMessageItem {
@@ -100,6 +103,7 @@ export interface ChatMessageItem {
   elapsedMs?: number
   /** 本轮执行步骤；仅 AGENT 最终回复 */
   progress?: TurnStep[]
+  attachments?: ReplyAttachment[]
   /** 本轮追踪号；失败时展示末 6 位 */
   traceId?: string
   /** 本轮是否失败 */

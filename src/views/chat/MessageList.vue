@@ -21,6 +21,7 @@
             <pre v-if="message.role === 'USER'" class="message-text">{{ message.content }}</pre>
             <template v-else>
               <div class="message-text markdown" v-html="renderMarkdown(bodyOf(message.content))" />
+              <ReplyAttachments :attachments="message.attachments" />
               <div v-for="(notice, index) in noticesOf(message.content)" :key="index" class="message-notice">
                 {{ notice }}
               </div>
@@ -80,13 +81,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import MarkdownIt from 'markdown-it'
-import DOMPurify from 'dompurify'
+import { createMarkdown, renderSafe } from './markdown'
 import type { ChatMessageItem, TurnStep } from './type'
 import { formatDuration, formatFullTime, formatMessageTime } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
 import ProgressTimeline from './ProgressTimeline.vue'
+import ReplyAttachments from './ReplyAttachments.vue'
 
 defineProps<{
   messages: ChatMessageItem[]
@@ -99,13 +100,7 @@ defineProps<{
 const liveExpanded = defineModel<boolean>('liveExpanded', { default: false })
 
 /** AI 回复统一按 Markdown 渲染：不信任原始 HTML，只认 ``` 代码块 */
-const markdown = new MarkdownIt({ html: false, breaks: true, linkify: true }).disable('code')
-
-markdown.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
-  tokens[idx].attrSet('target', '_blank')
-  tokens[idx].attrSet('rel', 'noopener noreferrer')
-  return self.renderToken(tokens, idx, options)
-}
+const markdown = createMarkdown()
 
 /** 警告行标记：运行时在确认内容里以此开头的行是附加检查给出的警告，单独醒目展示 */
 const NOTICE_MARK = '⚠'
@@ -125,7 +120,7 @@ function noticesOf(content: string | null | undefined): string[] {
 }
 
 function renderMarkdown(content: string | null | undefined): string {
-  return DOMPurify.sanitize(markdown.render(content ?? ''), { ADD_ATTR: ['target'] })
+  return renderSafe(markdown, content ?? '')
 }
 
 const copiedTraceId = ref<string | null>(null)

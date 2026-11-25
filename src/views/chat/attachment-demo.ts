@@ -1,0 +1,38 @@
+import type { ChatMessageItem } from './type'
+
+export const attachmentDemoMessage: ChatMessageItem = {
+  id: 'reply-attachment-demo',
+  role: 'AGENT',
+  createdAtMs: Date.now(),
+  content: '以下是模拟报告。\n\n```chart\n{ "kind": "BAR", "title": "正文中的普通代码块", "categories": ["A"], "series": [{ "name": "数量", "values": [1] }] }\n```',
+  attachments: [{
+    type: 'REPORT',
+    title: '分析报告演示',
+    content: [
+      '# 运营数据报告',
+      '',
+      '覆盖三种图表类型与 Markdown 表格。',
+      '',
+      '```chart',
+      '{ "kind": "BAR", "title": "各分类数量", "categories": ["产品", "技术", "活动"], "series": [{ "name": "数量", "values": [12, 7, 10] }], "unit": "项" }',
+      '```',
+      '',
+      '```chart',
+      '{ "kind": "LINE", "title": "每周访问趋势", "categories": ["周一", "周二", "周三", "周四"], "series": [{ "name": "访问量", "values": [120, 160, 148, 210] }], "unit": "次" }',
+      '```',
+      '',
+      '```chart',
+      '{ "kind": "PIE", "title": "流量来源", "categories": ["站内", "搜索", "推荐"], "series": [{ "name": "来源", "values": [55, 30, 15] }] }',
+      '```',
+      '',
+      '| 指标 | 本周 | 上周 |',
+      '| --- | ---: | ---: |',
+      '| 新增内容 | 29 | 24 |',
+      '| 访问量 | 638 | 572 |',
+      '',
+      '```chart',
+      '{ invalid json }',
+      '```',
+    ].join('\n'),
+  }],
+}
