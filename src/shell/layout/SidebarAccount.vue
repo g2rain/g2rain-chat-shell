@@ -302,7 +302,8 @@ function login(): void {
 }
 
 /**
- * 退出登录：保留密钥与接入码；开放匿名访问时回到原来的访客身份，否则进入退出页。
+ * 退出登录：保留密钥与接入码，进入退出页，由退出页引导到 IAM 结束员工会话。
+ * 之后重新打开时按原密钥与接入码回到原来的访客身份。
  */
 async function logout(): Promise<void> {
   menuOpen.value = false
@@ -312,10 +313,6 @@ async function logout(): Promise<void> {
   resetNavigationRestoreState()
   tokenStore.logout()
   session.clearSession()
-  if (sso.canAuthorizeAnonymous()) {
-    await sso.authorizeAnonymous()
-    return
-  }
   await router.push('/logout')
 }
 </script>

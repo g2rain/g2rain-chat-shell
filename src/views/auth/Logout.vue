@@ -1,26 +1,46 @@
 <template>
   <div class="logout-page">
-    <div class="panel">
-      <h1>{{ $t('MS_HDR_LOGO', projectName) }}</h1>
-      <h2>{{ $t('MS_AU_LOGOUT_TITLE', '您已安全退出') }}</h2>
-      <p>
-        {{ $t('CS_AU_LOGOUT_DESC_PREFIX', '账户已在本应用退出。如需彻底退出，请访问') }}
-        <a href="javascript:void(0)" @click.prevent="gotoSsoIndex">{{ $t('CS_AU_IAM_SHORT', 'IAM 系统') }}</a>
-        {{ $t('CS_AU_LOGOUT_DESC_SUFFIX', '。系统将在') }}
-        {{ countdown }}
-        {{ $t('G2_AU_LOGOUT_COUNTDOWN', '秒后自动跳转。') }}
-      </p>
-      <button type="button" class="btn primary" @click="relogin">{{ $t('MS_AU_RELOGIN', '重新登录') }}</button>
+    <div class="logout-container">
+      <div class="logo-section">
+        <h1 class="app-title">{{ $t('MS_HDR_LOGO', '谷雨开源SaaS平台') }}</h1>
+        <p class="app-subtitle">{{ $t('MS_AU_LOGOUT_SUB', '企业级应用管理解决方案') }}</p>
+      </div>
+
+      <div class="content-section">
+        <div class="logout-icon">
+          <el-icon :size="64" color="var(--g2-color-primary)">
+            <User />
+          </el-icon>
+        </div>
+        <h2 class="logout-title">{{ $t('MS_AU_LOGOUT_TITLE', '您已安全退出') }}</h2>
+        <p class="logout-description">
+          {{ $t('MS_AU_LOGOUT_DESC_PREFIX', '感谢您使用 谷雨开源SaaS平台。您的账户已在本应用退出，如果要彻底退出请访问') }}
+          <a href="javascript:void(0);" class="sso-link" @click.prevent="gotoSsoIndex">
+            {{ $t('MS_AU_IAM_LINK', '谷雨开源SaaS平台 IAM系统') }}
+          </a>
+          {{ $t('MS_AU_LOGOUT_DESC_SUFFIX', '，系统将在') }} {{ countdown }}
+          {{ $t('G2_AU_LOGOUT_COUNTDOWN', '秒后自动跳转。') }}
+        </p>
+        <p class="logout-tip">
+          {{ $t('MS_AU_LOGOUT_TIP', '如需继续使用，请重新登录。') }}
+        </p>
+      </div>
+
+      <div class="action-section">
+        <el-button type="primary" size="large" class="login-button" @click="relogin">
+          <el-icon><Lock /></el-icon>
+          {{ $t('MS_AU_RELOGIN', '重新登录') }}
+        </el-button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { PROJECT_NAME } from '../../shared/project'
+import { Lock, User } from '@element-plus/icons-vue'
 import { sso } from '../../runtime/auth/sso'
 
-const projectName = PROJECT_NAME
 const countdown = ref(5)
 let timer: number | null = null
 
@@ -57,35 +77,92 @@ onUnmounted(() => {
 <style scoped>
 .logout-page {
   display: flex;
-  min-height: 100vh;
-  align-items: center;
   justify-content: center;
-  background: var(--g2-bg-page);
-  color: var(--g2-text-primary);
-  padding: 24px;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--g2-space-lg);
+  background: linear-gradient(135deg, var(--g2-bg-page) 0%, var(--g2-bg-muted) 100%);
 }
 
-.panel {
-  max-width: 480px;
+.logout-container {
   width: 100%;
-  padding: 32px;
-  border-radius: 8px;
-  background: var(--g2-bg-container);
-  border: 1px solid var(--g2-border-color);
+  max-width: 500px;
+  padding: var(--g2-space-xl);
+  border-radius: var(--g2-border-radius-lg);
+  background-color: var(--g2-bg-container);
+  box-shadow: var(--g2-shadow-base);
   text-align: center;
 }
 
-.panel a {
-  color: var(--g2-color-primary);
+.logo-section {
+  margin-bottom: var(--g2-space-xl);
+  padding-bottom: var(--g2-space-lg);
+  border-bottom: 1px solid var(--g2-border-color);
 }
 
-.btn.primary {
-  margin-top: 16px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 4px;
-  background: var(--g2-color-primary);
-  color: #fff;
+.app-title {
+  margin: 0 0 var(--g2-space-xs);
+  color: var(--g2-text-primary);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.app-subtitle {
+  margin: 0;
+  color: var(--g2-text-secondary);
+  font-size: var(--g2-font-size-sm);
+}
+
+.content-section {
+  margin: var(--g2-space-xl) 0;
+}
+
+.logout-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--g2-space-lg);
+}
+
+.logout-title {
+  margin: 0 0 var(--g2-space-md);
+  color: var(--g2-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.logout-description {
+  margin: 0 0 var(--g2-space-sm);
+  color: var(--g2-text-secondary);
+  font-size: var(--g2-font-size-base);
+  line-height: 1.6;
+}
+
+.logout-tip {
+  margin: 0;
+  color: var(--g2-text-placeholder);
+  font-size: var(--g2-font-size-sm);
+}
+
+.sso-link {
+  color: var(--g2-color-primary);
+  text-decoration: underline;
   cursor: pointer;
+}
+
+.action-section {
+  margin-top: var(--g2-space-xl);
+  padding-top: var(--g2-space-lg);
+  border-top: 1px solid var(--g2-border-color);
+}
+
+.login-button {
+  width: 100%;
+  padding: var(--g2-space-md);
+  font-size: var(--g2-font-size-base);
+  font-weight: 500;
+}
+
+.login-button :deep(.el-icon) {
+  margin-right: var(--g2-space-xs);
 }
 </style>

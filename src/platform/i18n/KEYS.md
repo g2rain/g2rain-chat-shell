@@ -63,10 +63,6 @@
 | CS_AU_ENTRY_UNAVAILABLE | 该入口暂不可用 | SsoCallback |
 | CS_AU_REENTER | 重新进入 | SsoCallback |
 | CS_AU_ENTERING | 正在进入应用... | SsoCallback |
-| CS_AU_LOGOUT_DESC_PREFIX | 账户已在本应用退出。如需彻底退出，请访问 | Logout |
-| CS_AU_IAM_SHORT | IAM 系统 | Logout |
-| CS_AU_LOGOUT_DESC_SUFFIX | 。系统将在 | Logout |
-| CS_AU_LOGOUT_COUNTDOWN | 秒后自动跳转。 | Logout |
 | CS_REDIR_JUMP | 正在跳转... | SubAppRedirectGateway |
 | CS_REDIR_TO_LOGIN | 正在跳转登录... | SubAppRedirectGateway |
 | CS_REDIR_LOGIN_FAIL | 跳转登录失败 | SubAppRedirectGateway |
