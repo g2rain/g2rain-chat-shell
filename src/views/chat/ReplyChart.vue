@@ -41,13 +41,14 @@ function parseChart(raw: string): ChartSpec | null {
       return { name: entry.name, values: entry.values }
     })
     if (series.some((item) => item === null) || series.some((item) => item?.values.length !== categories.length)) return null
-    if (candidate.unit !== undefined && typeof candidate.unit !== 'string') return null
+    // unit 可选：缺省或为 null 都视为没有单位
+    if (candidate.unit != null && typeof candidate.unit !== 'string') return null
     return {
       kind: candidate.kind as ChartSpec['kind'],
       title: candidate.title,
       categories,
       series: series as ChartSpec['series'],
-      unit: candidate.unit as string | undefined,
+      unit: (candidate.unit as string | null | undefined) ?? undefined,
     }
   } catch {
     return null
