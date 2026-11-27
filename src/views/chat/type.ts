@@ -2,6 +2,19 @@ export type TurnStatus = 'DONE' | 'WAITING' | 'FAILED' | 'CANCELLED'
 export type ResumeAction = 'REPLY' | 'CONFIRM' | 'REJECT' | 'CANCEL'
 
 export type StepStage = 'ROUTE' | 'PLAN' | 'NODE' | 'ROUND' | 'MODEL' | 'TOOL' | 'VERIFY'
+
+/** 工具种类；仅 TOOL 环节有值，决定步骤图标 */
+export type ToolKind =
+  | 'CONTROL'
+  | 'ENV'
+  | 'SESSION'
+  | 'NODE'
+  | 'SEARCH'
+  | 'FETCH'
+  | 'IMPORT'
+  | 'ANALYZE'
+  | 'REPORT'
+  | 'BUSINESS'
 export interface ReplyAttachment { type: string; title: string; content: string }
 /** WARN：已完成，但附带须让用户知道的警告（detail 为警告说明） */
 export type StepStatus = 'RUNNING' | 'DONE' | 'WARN' | 'FAILED'
@@ -11,6 +24,7 @@ export interface TurnStep {
   stepId: string
   parentStepId?: string
   stage: StepStage
+  toolKind?: ToolKind
   status: StepStatus
   title: string
   detail?: string

@@ -34,7 +34,10 @@
         :class="`is-${row.step.status.toLowerCase()}`"
         :style="{ '--depth': row.depth }"
       >
-        <span class="timeline__icon" aria-hidden="true">{{ iconOf(row.step) }}</span>
+        <span class="timeline__icon" aria-hidden="true">
+          <component :is="KIND_ICONS[row.step.toolKind]" v-if="row.step.toolKind && KIND_ICONS[row.step.toolKind]" />
+          <template v-else>{{ iconOf(row.step) }}</template>
+        </span>
         <span class="timeline__step">{{ row.step.title }}</span>
         <span v-if="row.step.detail" class="timeline__detail">{{ row.step.detail }}</span>
         <span v-if="row.step.elapsedMs != null" class="timeline__elapsed">
@@ -58,9 +61,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch, type Component } from 'vue'
+import { DataAnalysis, Search } from '@element-plus/icons-vue'
 import { t } from '../../platform/i18n'
-import type { TurnStep } from './type'
+import type { ToolKind, TurnStep } from './type'
 import { formatDuration, isFailed } from './messages'
 import CheckIcon from './icons/CheckIcon.vue'
 import CopyIcon from './icons/CopyIcon.vue'
@@ -151,6 +155,9 @@ const durationText = computed(() => {
   if (props.running) return formatDuration(now.value - startedAt)
   return props.elapsedMs != null ? formatDuration(props.elapsedMs) : ''
 })
+
+/** 有专属图标的工具种类；状态改由颜色区分，其余仍按状态显示符号 */
+const KIND_ICONS: Partial<Record<ToolKind, Component>> = { SEARCH: Search, REPORT: DataAnalysis }
 
 function iconOf(step: TurnStep): string {
   if (step.status === 'FAILED') return '✗'
@@ -264,6 +271,12 @@ function iconOf(step: TurnStep): string {
   width: 12px;
   flex-shrink: 0;
   text-align: center;
+}
+
+.timeline__icon svg {
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
 }
 
 .timeline__row.is-done .timeline__icon {
